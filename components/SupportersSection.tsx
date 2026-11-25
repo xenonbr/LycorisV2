@@ -17,9 +17,19 @@ export default function SupportersSection() {
 
   if (supporters.length === 0) return null;
 
+  // Garante cards suficientes em uma metade para cobrir qualquer tela sem espaços vazios
+  const repeatCount = Math.max(2, Math.ceil(6 / supporters.length));
+  const halfList: Supporter[] = [];
+  for (let i = 0; i < repeatCount; i++) {
+    halfList.push(...supporters);
+  }
+  // Duplica a metade para que translate3d(-50%) crie um loop infinito perfeito
+  const trackItems = [...halfList, ...halfList];
+  const durationSeconds = Math.max(28, halfList.length * 9);
+
   return (
-    <section id="apoiadores" className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto z-10">
-      <div className="text-center space-y-4 mb-16">
+    <section id="apoiadores" className="relative py-28 max-w-7xl mx-auto z-10 overflow-hidden">
+      <div className="text-center space-y-4 mb-16 px-4 sm:px-6 lg:px-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950/70 border border-gothic-gold/30 text-gothic-gold text-xs font-semibold uppercase tracking-widest">
           <Award className="w-3.5 h-3.5" />
           Gratidão e Parcerias
@@ -37,54 +47,66 @@ export default function SupportersSection() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-        {supporters.map((supporter) => (
-          <div
-            key={supporter.id || supporter.name}
-            className="group relative rounded-2xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 p-8 flex flex-col justify-between transition-all duration-300 hover:shadow-gold-glow hover:-translate-y-1"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gothic-gold/5 rounded-full blur-3xl group-hover:bg-gothic-gold/15 transition-all" />
+      {/* Carrossel Contínuo */}
+      <div className="supporters-marquee-wrapper relative w-full overflow-hidden py-4">
+        {/* Fade suave nas bordas laterais */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-gothic-bg to-transparent z-20" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-gothic-bg to-transparent z-20" />
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-zinc-900 border border-gothic-gold/30 text-gothic-gold">
-                  {supporter.role}
-                </span>
-                <Sparkles className="w-4 h-4 text-gothic-gold/70" />
-              </div>
+        <div
+          className="supporters-marquee-track gap-6 px-3"
+          style={{ ['--marquee-duration' as any]: `${durationSeconds}s` }}
+        >
+          {trackItems.map((supporter, idx) => (
+            <div
+              key={`${supporter.id || supporter.name}-${idx}`}
+              className="group relative w-[310px] sm:w-[370px] shrink-0 rounded-2xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 p-7 flex flex-col justify-between transition-all duration-300 hover:shadow-gold-glow hover:-translate-y-1"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gothic-gold/5 rounded-full blur-3xl group-hover:bg-gothic-gold/15 transition-all" />
 
-              <div className="flex items-center gap-4">
-                {supporter.avatar && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={supporter.avatar}
-                    alt={supporter.name}
-                    className="w-14 h-14 rounded-full object-cover border border-gothic-gold/40"
-                  />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-zinc-900 border border-gothic-gold/30 text-gothic-gold">
+                    {supporter.role}
+                  </span>
+                  <Sparkles className="w-4 h-4 text-gothic-gold/70" />
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {supporter.avatar && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={supporter.avatar}
+                      alt={supporter.name}
+                      className="w-12 h-12 rounded-full object-cover border border-gothic-gold/40 shrink-0"
+                    />
+                  )}
+                  <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white group-hover:text-gothic-gold transition-colors truncate">
+                    {supporter.name}
+                  </h3>
+                </div>
+
+                {supporter.tagline && (
+                  <p className="font-sans text-sm text-zinc-300 leading-relaxed line-clamp-2">
+                    {supporter.tagline}
+                  </p>
                 )}
-                <h3 className="font-serif text-3xl font-bold text-white group-hover:text-gothic-gold transition-colors">
-                  {supporter.name}
-                </h3>
               </div>
 
-              {supporter.tagline && (
-                <p className="font-sans text-sm text-zinc-300 leading-relaxed">{supporter.tagline}</p>
-              )}
+              <div className="pt-5 mt-5 border-t border-zinc-800">
+                <a
+                  href={supporter.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gothic-gold hover:text-white transition-colors group-hover:translate-x-1 duration-200"
+                >
+                  <span>Conhecer Projeto</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
             </div>
-
-            <div className="pt-6 mt-6 border-t border-zinc-800">
-              <a
-                href={supporter.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-gothic-gold hover:text-white transition-colors group-hover:translate-x-1 duration-200"
-              >
-                <span>Conhecer Projeto</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );

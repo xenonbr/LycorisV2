@@ -41,3 +41,25 @@
 .gold-glow {
   text-shadow: 0 0 15px rgba(218, 175, 55, 0.5);
 }
+
+/* Carrossel contínuo de apoiadores */
+@keyframes supporters-marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.supporters-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: supporters-marquee var(--marquee-duration, 38s) linear infinite;
+  will-change: transform;
+}
+
+.supporters-marquee-wrapper:hover .supporters-marquee-track {
+  animation-play-state: paused;
+}
+
