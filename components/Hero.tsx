@@ -102,12 +102,14 @@ export default function Hero() {
             return (
               <div
                 key={item.id || idx}
-                className="p-3.5 sm:p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm flex flex-col justify-center"
+                className="group relative overflow-hidden p-3.5 sm:p-4 rounded-xl bg-zinc-950/60 hover:bg-gradient-to-b hover:from-lycoris-950/50 hover:to-zinc-950/90 border border-zinc-800/80 hover:border-lycoris-500/60 backdrop-blur-sm flex flex-col justify-center transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-lycoris-glow cursor-default"
               >
-                <div className={`font-serif text-xl sm:text-3xl font-bold leading-tight ${colorCls}`}>
+                <div className="pointer-events-none absolute -top-6 -right-6 w-20 h-20 bg-lycoris-500/0 group-hover:bg-lycoris-500/20 rounded-full blur-2xl transition-all duration-300" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-lycoris-400/0 group-hover:via-lycoris-400/60 to-transparent transition-all duration-300" />
+                <div className={`relative z-10 font-serif text-xl sm:text-3xl font-bold leading-tight transition-transform duration-300 group-hover:scale-105 ${colorCls}`}>
                   {item.value}
                 </div>
-                <div className="text-[11px] sm:text-xs text-zinc-400 tracking-wider uppercase mt-1">
+                <div className="relative z-10 text-[11px] sm:text-xs text-zinc-400 group-hover:text-zinc-200 tracking-wider uppercase mt-1 transition-colors duration-300">
                   {item.label}
                 </div>
               </div>
