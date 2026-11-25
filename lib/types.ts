@@ -49,3 +49,10 @@ export interface EventRegistration {
   notes?: string | null;
   created_at: string;
 }
+
+export interface HeroStat {
+  id?: string;
+  value: string;
+  label: string;
+  color?: 'lycoris-400' | 'gothic-gold' | 'white' | 'lycoris-500';
+}

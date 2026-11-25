@@ -1,10 +1,30 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ExternalLink, Calendar, ChevronDown, Flame } from 'lucide-react';
+import { INITIAL_HERO_STATS } from '@/lib/mockData';
+import { HeroStat } from '@/lib/types';
+
+const COLOR_CLASS: Record<string, string> = {
+  'lycoris-400': 'text-lycoris-400',
+  'gothic-gold': 'text-gothic-gold',
+  white: 'text-white',
+  'lycoris-500': 'text-lycoris-500',
+};
 
 export default function Hero() {
+  const [stats, setStats] = useState<HeroStat[]>(INITIAL_HERO_STATS);
+
+  useEffect(() => {
+    fetch('/api/stats', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) setStats(data);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Imagem de Fundo com Vinheta e Gradiente Gótico */}
@@ -40,13 +60,13 @@ export default function Hero() {
           </p>
         </div>
 
-       {/* Descrição da Comunidade */}
+        {/* Descrição da Comunidade */}
         <div className="font-sans text-base sm:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed font-normal space-y-2">
           <p>• Instâncias com DJs</p>
           <p>• Sorteios</p>
           <p>• Eventos e atividades especiais</p>
           <p>• Uma comunidade para conhecer pessoas e criar memórias</p>
-          
+
           <p className="font-serif italic text-lycoris-300 pt-3 text-lg">
             &ldquo;Entre no jardim, e se torne um Lírio.&rdquo;
           </p>
@@ -73,24 +93,26 @@ export default function Hero() {
           </a>
         </div>
 
-        {/* Destaques / Estatísticas Rápidas */}
+        {/* Destaques / Estatísticas Rápidas (Editáveis via /admin) */}
         <div className="pt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-          <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm">
-            <div className="font-serif text-2xl sm:text-3xl font-bold text-lycoris-400">1.2K+</div>
-            <div className="text-xs text-zinc-400 tracking-wider uppercase mt-1">Membros Ativos</div>
-          </div>
-          <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm">
-            <div className="font-serif text-2xl sm:text-3xl font-bold text-gothic-gold">80+</div>
-            <div className="text-xs text-zinc-400 tracking-wider uppercase mt-1">Encontros Noturnos</div>
-          </div>
-          <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm">
-            <div className="font-serif text-2xl sm:text-3xl font-bold text-white">PC & Quest</div>
-            <div className="text-xs text-zinc-400 tracking-wider uppercase mt-1">Suporte Híbrido</div>
-          </div>
-          <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm">
-            <div className="font-serif text-2xl sm:text-3xl font-bold text-lycoris-500">100%</div>
-            <div className="text-xs text-zinc-400 tracking-wider uppercase mt-1">Atmosfera Gótica</div>
-          </div>
+          {stats.map((item, idx) => {
+            const colorCls =
+              COLOR_CLASS[item.color || ''] ||
+              ['text-lycoris-400', 'text-gothic-gold', 'text-white', 'text-lycoris-500'][idx % 4];
+            return (
+              <div
+                key={item.id || idx}
+                className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm flex flex-col justify-center"
+              >
+                <div className={`font-serif text-2xl sm:text-3xl font-bold ${colorCls}`}>
+                  {item.value}
+                </div>
+                <div className="text-xs text-zinc-400 tracking-wider uppercase mt-1">
+                  {item.label}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Indicador de Rolagem */}

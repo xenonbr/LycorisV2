@@ -22,8 +22,8 @@ import {
   Download,
   Upload,
 } from 'lucide-react';
-import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration } from '@/lib/types';
-import { INITIAL_EVENTS, INITIAL_GALLERY } from '@/lib/mockData';
+import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration, HeroStat } from '@/lib/types';
+import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
 import LycorisParticles from '@/components/LycorisParticles';
 
 const TOKEN_KEY = 'lycoris_admin_token';
@@ -91,7 +91,7 @@ export default function AdminPage() {
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
   const [activeTab, setActiveTab] = useState<
-    'events' | 'registrations' | 'supporters' | 'gallery' | 'comments'
+    'events' | 'registrations' | 'supporters' | 'gallery' | 'comments' | 'stats'
   >('events');
 
   // Estados de dados
@@ -100,6 +100,8 @@ export default function AdminPage() {
   const [allComments, setAllComments] = useState<CommentItem[]>([]);
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
   const [supporters, setSupporters] = useState<Supporter[]>([]);
+  const [heroStats, setHeroStats] = useState<HeroStat[]>(INITIAL_HERO_STATS);
+  const [savingStats, setSavingStats] = useState(false);
   const [regFilter, setRegFilter] = useState('');
   const [supporterForm, setSupporterForm] = useState(EMPTY_SUPPORTER);
   const [editingSupporterId, setEditingSupporterId] = useState<string | null>(null);
@@ -235,12 +237,13 @@ export default function AdminPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [resEv, resGal, resComm, resReg, resSup] = await Promise.all([
+      const [resEv, resGal, resComm, resReg, resSup, resStats] = await Promise.all([
         api('/api/events'),
         api('/api/gallery'),
         api('/api/comments'),
         api('/api/registrations'),
         api('/api/supporters'),
+        api('/api/stats'),
       ]);
 
       if (resReg.status === 401) {
@@ -249,11 +252,45 @@ export default function AdminPage() {
       }
       if (resReg.ok) setRegistrations(await resReg.json());
       if (resSup.ok) setSupporters(await resSup.json());
+      if (resStats.ok) {
+        const s = await resStats.json();
+        if (Array.isArray(s) && s.length > 0) setHeroStats(s);
+      }
       if (resEv.ok) setEvents(await resEv.json());
       if (resGal.ok) setGallery(await resGal.json());
       if (resComm.ok) setAllComments(await resComm.json());
     } catch (err) {
       console.warn('Erro ao atualizar dados do painel:', err);
+    }
+  };
+
+  // Destaques do Topo (Hero Stats)
+  const handleStatChange = (index: number, field: keyof HeroStat, val: string) => {
+    setHeroStats((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: val } : item))
+    );
+  };
+
+  const handleSaveHeroStats = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingStats(true);
+    try {
+      const res = await api('/api/stats', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(heroStats),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao salvar caixas de destaque');
+        return;
+      }
+      if (Array.isArray(data)) setHeroStats(data);
+      showToast('Caixas de destaque atualizadas no site!');
+    } catch {
+      showToast('Erro ao salvar caixas de destaque');
+    } finally {
+      setSavingStats(false);
     }
   };
 
@@ -651,6 +688,18 @@ export default function AdminPage() {
           >
             <HeartHandshake className="w-4 h-4" />
             <span>Apoiadores ({supporters.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'stats'
+                ? 'border-lycoris-500 text-lycoris-400'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Destaques do Topo ({heroStats.length})</span>
           </button>
 
           <button
@@ -1127,6 +1176,106 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ABA: DESTAQUES DO TOPO (CAIXAS DO BANNER) */}
+        {activeTab === 'stats' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="font-serif text-lg font-bold text-white">
+                Caixas de Destaque do Banner Principal
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Edite os números, títulos e cores das 4 caixas que ficam no topo do site (ex: Membros Ativos, Encontros Noturnos, PC &amp; Quest, Atmosfera Gótica).
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveHeroStats} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {heroStats.map((stat, idx) => (
+                  <div
+                    key={stat.id || idx}
+                    className="p-5 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                        Caixa #{idx + 1}
+                      </span>
+                      <span
+                        className={`font-serif text-lg font-bold ${
+                          stat.color === 'gothic-gold'
+                            ? 'text-gothic-gold'
+                            : stat.color === 'white'
+                            ? 'text-white'
+                            : stat.color === 'lycoris-500'
+                            ? 'text-lycoris-500'
+                            : 'text-lycoris-400'
+                        }`}
+                      >
+                        {stat.value || '—'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Valor Principal (Destaque)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={40}
+                        placeholder="Ex: 1.2K+"
+                        value={stat.value}
+                        onChange={(e) => handleStatChange(idx, 'value', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-sm font-semibold focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Legenda Inferior
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={60}
+                        placeholder="Ex: Membros Ativos"
+                        value={stat.label}
+                        onChange={(e) => handleStatChange(idx, 'label', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Cor do Número/Texto
+                      </label>
+                      <select
+                        value={stat.color || 'lycoris-400'}
+                        onChange={(e) => handleStatChange(idx, 'color', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      >
+                        <option value="lycoris-400">Rosa Carmesim Claro</option>
+                        <option value="lycoris-500">Vermelho Lycoris</option>
+                        <option value="gothic-gold">Dourado Gótico</option>
+                        <option value="white">Branco Puro</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingStats}
+                  className="px-6 py-3 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
+                >
+                  {savingStats ? 'Salvando...' : 'Salvar Alterações nos Destaques'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
