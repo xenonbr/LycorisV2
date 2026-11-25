@@ -128,9 +128,9 @@ export default function EventsSection() {
                     src={event.image_url}
                     alt=""
                     aria-hidden="true"
-                    className="w-full h-full object-cover scale-110 blur-[6px] opacity-35 group-hover:opacity-45 group-hover:scale-115 transition-all duration-500"
+                    className="w-full h-full object-cover scale-105 blur-[3px] opacity-55 group-hover:opacity-65 group-hover:scale-110 transition-all duration-500"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/70 via-zinc-950/75 to-zinc-950/95" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/55 via-zinc-950/60 to-zinc-950/85" />
                 </div>
               )}
 

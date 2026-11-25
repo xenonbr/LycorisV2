@@ -948,7 +948,7 @@ export default function AdminPage() {
                       <img
                         src={eventForm.image_url}
                         alt="Prévia do fundo"
-                        className="absolute inset-0 w-full h-full object-cover scale-110 blur-[4px] opacity-45"
+                        className="absolute inset-0 w-full h-full object-cover scale-105 blur-[2.5px] opacity-60"
                       />
                       <span className="relative z-10 text-[11px] font-semibold text-zinc-200 bg-black/60 px-2.5 py-1 rounded-full border border-zinc-700">
                         Prévia do Fundo Desfocado
@@ -1010,9 +1010,9 @@ export default function AdminPage() {
                           <img
                             src={ev.image_url}
                             alt=""
-                            className="w-full h-full object-cover scale-110 blur-[5px] opacity-25"
+                            className="w-full h-full object-cover scale-105 blur-[3px] opacity-45"
                           />
-                          <div className="absolute inset-0 bg-zinc-950/75" />
+                          <div className="absolute inset-0 bg-zinc-950/60" />
                         </div>
                       )}
                       <div className="relative z-10 space-y-1 min-w-0">
