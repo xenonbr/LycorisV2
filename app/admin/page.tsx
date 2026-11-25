@@ -38,6 +38,16 @@ function api(url: string, init: RequestInit = {}) {
 }
 
 const EMPTY_SUPPORTER = { name: '', url: '', tagline: '', role: 'Apoiador', avatar: '' };
+const EMPTY_EVENT = {
+  title: '',
+  description: '',
+  date: '',
+  time: '21:30 BRT',
+  vrchat_world: '',
+  world_url: '',
+  image_url: '',
+  category: 'Encontro Oficial',
+};
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -110,16 +120,11 @@ export default function AdminPage() {
   const [editingSupporterId, setEditingSupporterId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Formulário de Novo Evento
-  const [eventForm, setEventForm] = useState({
-    title: '',
-    description: '',
-    date: '',
-    time: '21:30 BRT',
-    vrchat_world: '',
-    world_url: '',
-    category: 'Encontro Oficial',
-  });
+  // Formulário de Novo / Edição de Evento
+  const [eventForm, setEventForm] = useState(EMPTY_EVENT);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [uploadingEventImage, setUploadingEventImage] = useState(false);
+  const [eventCompressionStats, setEventCompressionStats] = useState<string | null>(null);
 
   // Formulário de Nova Foto na Galeria
   const [galleryForm, setGalleryForm] = useState({
@@ -137,6 +142,38 @@ export default function AdminPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [compressionStats, setCompressionStats] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleEventImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingEventImage(true);
+    setEventCompressionStats('Comprimindo imagem do mapa...');
+    try {
+      const originalSize = file.size;
+      const compressed = await compressImageFile(file, 1280, 0.8);
+      const savedPct = Math.max(0, Math.round((1 - compressed.size / originalSize) * 100));
+
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'events');
+
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+
+      setEventForm((prev) => ({ ...prev, image_url: data.url }));
+      setEventCompressionStats(
+        `Comprimido: ${formatBytes(originalSize)} → ${formatBytes(compressed.size)} (WebP, -${savedPct}%)`
+      );
+      showToast('Fundo do evento comprimido e enviado!');
+    } catch (err: any) {
+      setEventCompressionStats(null);
+      showToast(err.message || 'Erro ao enviar imagem do mapa');
+    } finally {
+      setUploadingEventImage(false);
+      e.target.value = '';
+    }
+  };
 
   const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -423,33 +460,52 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Criar Evento
+  // Criar ou Atualizar Evento
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+    const editing = editingEventId;
     try {
       const res = await api('/api/events', {
-        method: 'POST',
+        method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventForm),
+        body: JSON.stringify(editing ? { ...eventForm, id: editing } : eventForm),
       });
 
-      if (res.ok) {
-        const created = await res.json();
-        setEvents((prev) => [created, ...prev]);
-        setEventForm({
-          title: '',
-          description: '',
-          date: '',
-          time: '21:30 BRT',
-          vrchat_world: '',
-          world_url: '',
-          category: 'Encontro Oficial',
-        });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao salvar evento');
+        return;
+      }
+
+      if (editing) {
+        setEvents((prev) => prev.map((ev) => (ev.id === editing ? data : ev)));
+        showToast('Evento atualizado com sucesso!');
+      } else {
+        setEvents((prev) => [data, ...prev]);
         showToast('Evento criado com sucesso!');
       }
+      setEventForm(EMPTY_EVENT);
+      setEditingEventId(null);
+      setEventCompressionStats(null);
     } catch (err) {
-      showToast('Erro ao criar evento');
+      showToast('Erro ao salvar evento');
     }
+  };
+
+  const handleEditEvent = (ev: VRChatEvent) => {
+    setEditingEventId(ev.id);
+    setEventCompressionStats(null);
+    setEventForm({
+      title: ev.title || '',
+      description: ev.description || '',
+      date: ev.date || '',
+      time: ev.time || '21:30 BRT',
+      vrchat_world: ev.vrchat_world || '',
+      world_url: ev.world_url || '',
+      image_url:
+        ev.image_url && ev.image_url !== '/images/banner.jpg' ? ev.image_url : '',
+      category: ev.category || 'Encontro Oficial',
+    });
   };
 
   // Excluir Evento
@@ -764,10 +820,10 @@ export default function AdminPage() {
         {/* ============================================================== */}
         {activeTab === 'events' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4">
+            <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
               <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
                 <Plus className="w-4 h-4 text-lycoris-500" />
-                Novo Evento
+                {editingEventId ? 'Editar Evento' : 'Novo Evento'}
               </h2>
 
               <form onSubmit={handleCreateEvent} className="space-y-3">
@@ -843,6 +899,64 @@ export default function AdminPage() {
                   </select>
                 </div>
 
+                {/* Upload opcional de imagem do mapa como fundo desfocado */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs text-zinc-400">
+                      Imagem do Mapa / Fundo Desfocado (Opcional)
+                    </label>
+                    {eventForm.image_url && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEventForm({ ...eventForm, image_url: '' });
+                          setEventCompressionStats(null);
+                        }}
+                        className="text-[11px] text-red-400 hover:underline"
+                      >
+                        Remover fundo
+                      </button>
+                    )}
+                  </div>
+
+                  <label className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-lycoris-700/60 hover:border-lycoris-500 bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
+                    <Upload className="w-4 h-4 text-lycoris-400" />
+                    <span className="text-xs font-semibold text-zinc-200">
+                      {uploadingEventImage
+                        ? 'Comprimindo e enviando...'
+                        : 'Enviar foto do mapa do computador (WebP automático)'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingEventImage}
+                      onChange={handleEventImageFileChange}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {eventCompressionStats && (
+                    <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>{eventCompressionStats}</span>
+                    </p>
+                  )}
+
+                  {eventForm.image_url && (
+                    <div className="relative h-20 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={eventForm.image_url}
+                        alt="Prévia do fundo"
+                        className="absolute inset-0 w-full h-full object-cover scale-110 blur-[4px] opacity-45"
+                      />
+                      <span className="relative z-10 text-[11px] font-semibold text-zinc-200 bg-black/60 px-2.5 py-1 rounded-full border border-zinc-700">
+                        Prévia do Fundo Desfocado
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Descrição</label>
                   <textarea
@@ -855,12 +969,27 @@ export default function AdminPage() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
-                >
-                  Salvar e Publicar Evento
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
+                  >
+                    {editingEventId ? 'Salvar Alterações do Evento' : 'Salvar e Publicar Evento'}
+                  </button>
+                  {editingEventId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingEventId(null);
+                        setEventForm(EMPTY_EVENT);
+                        setEventCompressionStats(null);
+                      }}
+                      className="px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
@@ -868,35 +997,62 @@ export default function AdminPage() {
               <h2 className="font-serif text-lg font-bold text-white">Eventos Ativos ({events.length})</h2>
 
               <div className="space-y-3">
-                {events.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-start justify-between gap-4"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white text-sm">{ev.title}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-lycoris-950 border border-lycoris-800 text-lycoris-300">
-                          {ev.category}
-                        </span>
-                      </div>
-                      <div className="text-xs text-zinc-400 flex items-center gap-3">
-                        <span>{ev.date} às {ev.time}</span>
-                        <span>•</span>
-                        <span className="text-zinc-300">{ev.vrchat_world}</span>
-                      </div>
-                      <p className="text-xs text-zinc-500 line-clamp-2">{ev.description}</p>
-                    </div>
-
-                    <button
-                      onClick={() => handleDeleteEvent(ev.id)}
-                      title="Excluir evento"
-                      className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+                {events.map((ev) => {
+                  const hasBg = Boolean(ev.image_url && ev.image_url !== '/images/banner.jpg');
+                  return (
+                    <div
+                      key={ev.id}
+                      className="relative overflow-hidden p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-start justify-between gap-4"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                      {hasBg && (
+                        <div className="pointer-events-none absolute inset-0 z-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={ev.image_url}
+                            alt=""
+                            className="w-full h-full object-cover scale-110 blur-[5px] opacity-25"
+                          />
+                          <div className="absolute inset-0 bg-zinc-950/75" />
+                        </div>
+                      )}
+                      <div className="relative z-10 space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-white text-sm">{ev.title}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-lycoris-950 border border-lycoris-800 text-lycoris-300">
+                            {ev.category}
+                          </span>
+                          {hasBg && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
+                              Com fundo
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-zinc-400 flex items-center gap-3 flex-wrap">
+                          <span>{ev.date} às {ev.time}</span>
+                          <span>•</span>
+                          <span className="text-zinc-300">{ev.vrchat_world}</span>
+                        </div>
+                        <p className="text-xs text-zinc-400 line-clamp-2">{ev.description}</p>
+                      </div>
+
+                      <div className="relative z-10 flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleEditEvent(ev)}
+                          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-medium transition-colors"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvent(ev.id)}
+                          title="Excluir evento"
+                          className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

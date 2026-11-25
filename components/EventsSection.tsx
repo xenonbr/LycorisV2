@@ -111,14 +111,32 @@ export default function EventsSection() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {events.map((event) => (
+          {events.map((event) => {
+            const hasBgImage = Boolean(
+              event.image_url && event.image_url.trim() && event.image_url !== '/images/banner.jpg'
+            );
+            return (
             <article
               key={event.id}
-              className="group relative rounded-2xl bg-gradient-to-b from-zinc-900/90 to-zinc-950/90 border border-zinc-800/80 hover:border-lycoris-600/50 p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-lycoris-glow hover:-translate-y-1 backdrop-blur-sm"
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-900/90 to-zinc-950/90 border border-zinc-800/80 hover:border-lycoris-600/50 p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-lycoris-glow hover:-translate-y-1 backdrop-blur-sm"
             >
-              <div className="space-y-4">
+              {/* Imagem do mapa/evento como fundo meio desfocado (opcional) */}
+              {hasBgImage && (
+                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={event.image_url}
+                    alt=""
+                    aria-hidden="true"
+                    className="w-full h-full object-cover scale-110 blur-[6px] opacity-35 group-hover:opacity-45 group-hover:scale-115 transition-all duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/70 via-zinc-950/75 to-zinc-950/95" />
+                </div>
+              )}
+
+              <div className="relative z-10 space-y-4">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-lycoris-950 border border-lycoris-800/60 text-lycoris-300">
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-lycoris-950/90 border border-lycoris-800/60 text-lycoris-300 backdrop-blur-sm">
                     {event.category || 'Encontro Oficial'}
                   </span>
                   <span className="flex items-center gap-1.5 text-xs text-gothic-gold font-medium">
@@ -127,27 +145,27 @@ export default function EventsSection() {
                   </span>
                 </div>
 
-                <h3 className="font-serif text-2xl font-bold text-white group-hover:text-lycoris-300 transition-colors">
+                <h3 className="font-serif text-2xl font-bold text-white group-hover:text-lycoris-300 transition-colors drop-shadow">
                   {event.title}
                 </h3>
 
-                <div className="space-y-2 text-xs sm:text-sm text-zinc-400 pt-1">
+                <div className="space-y-2 text-xs sm:text-sm text-zinc-300 pt-1">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-lycoris-500 shrink-0" />
-                    <span>{new Date(event.date).toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    <span>{new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-zinc-300">
+                  <div className="flex items-center gap-2 text-zinc-200">
                     <MapPin className="w-4 h-4 text-lycoris-500 shrink-0" />
                     <span className="font-medium text-white">{event.vrchat_world}</span>
                   </div>
                 </div>
 
-                <p className="font-sans text-xs sm:text-sm text-zinc-400 leading-relaxed line-clamp-3">
+                <p className="font-sans text-xs sm:text-sm text-zinc-300/90 leading-relaxed line-clamp-3">
                   {event.description}
                 </p>
               </div>
 
-              <div className="pt-6 mt-6 border-t border-zinc-800/80 space-y-3">
+              <div className="relative z-10 pt-6 mt-6 border-t border-zinc-800/80 space-y-3">
                 <button
                   onClick={() => openRegistration(event)}
                   className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-lycoris-700 to-lycoris-600 hover:from-lycoris-600 hover:to-lycoris-500 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
@@ -188,7 +206,8 @@ export default function EventsSection() {
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
 
