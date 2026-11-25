@@ -1552,10 +1552,10 @@ export default function AdminPage() {
             <div className="lg:col-span-7 space-y-4">
               <div>
                 <h2 className="font-serif text-lg font-bold text-white">
-                  Fila de Moderação de Mensagens ({allComments.length})
+                  Fila de Moderação por Postagem ({allComments.length})
                 </h2>
                 <p className="text-xs text-zinc-400">
-                  Remova instantaneamente comentários inadequados deixados por visitantes nas fotos da galeria.
+                  Comentários agrupados em suas respectivas fotos da galeria para facilitar a identificação e moderação.
                 </p>
               </div>
 
@@ -1564,33 +1564,87 @@ export default function AdminPage() {
                   Nenhum comentário registrado na plataforma no momento.
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {allComments.map((comm) => (
-                    <div
-                      key={comm.id}
-                      className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-lycoris-400 text-xs">
-                            {comm.author_name}
-                          </span>
-                          <span className="text-[10px] text-zinc-500">
-                            {new Date(comm.created_at).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-200 break-words">{comm.content}</p>
-                      </div>
-
-                      <button
-                        onClick={() => handleDeleteComment(comm.id)}
-                        className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
+                <div className="space-y-5">
+                  {Object.entries(
+                    allComments.reduce<Record<string, CommentItem[]>>((acc, comm) => {
+                      const key = comm.image_id || 'unknown';
+                      if (!acc[key]) acc[key] = [];
+                      acc[key].push(comm);
+                      return acc;
+                    }, {})
+                  ).map(([imageId, groupComments]) => {
+                    const photo = gallery.find((g) => g.id === imageId);
+                    return (
+                      <div
+                        key={imageId}
+                        className="rounded-2xl bg-zinc-950/90 border border-zinc-800/90 overflow-hidden backdrop-blur-md"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Excluir</span>
-                      </button>
-                    </div>
-                  ))}
+                        {/* Cabeçalho da Foto / Postagem */}
+                        <div className="p-4 bg-zinc-900/70 border-b border-zinc-800 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            {photo?.url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={photo.url}
+                                alt={photo.title}
+                                className="w-12 h-12 rounded-xl object-cover border border-lycoris-800/60 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-500 shrink-0">
+                                <ImageIcon className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-serif font-bold text-sm text-white truncate">
+                                  {photo?.title || 'Postagem da Galeria'}
+                                </span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-lycoris-950 border border-lycoris-800 text-lycoris-300 font-semibold">
+                                  {groupComments.length}{' '}
+                                  {groupComments.length === 1 ? 'comentário' : 'comentários'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                                {photo
+                                  ? `Por ${photo.author} • ${photo.vrchat_world || 'Lycoris Garden Sanctuary'}`
+                                  : `ID da foto: ${imageId}`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Lista de Comentários desta Foto */}
+                        <div className="divide-y divide-zinc-800/70">
+                          {groupComments.map((comm) => (
+                            <div
+                              key={comm.id}
+                              className="p-3.5 sm:px-4 flex items-center justify-between gap-4 hover:bg-zinc-900/40 transition-colors"
+                            >
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-semibold text-lycoris-400 text-xs">
+                                    {comm.author_name}
+                                  </span>
+                                  <span className="text-[10px] text-zinc-500">
+                                    {new Date(comm.created_at).toLocaleString('pt-BR')}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-zinc-200 break-words">{comm.content}</p>
+                              </div>
+
+                              <button
+                                onClick={() => handleDeleteComment(comm.id)}
+                                className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Excluir</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
