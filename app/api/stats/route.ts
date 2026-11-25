@@ -14,10 +14,24 @@ let localStats: HeroStat[] = [...INITIAL_HERO_STATS];
 async function ensureBucket() {
   if (!supabaseAdmin) return;
   const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+  const allowedMimeTypes = [
+    'image/webp',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'application/json',
+  ];
   if (!buckets?.some((b) => b.name === BUCKET_NAME)) {
     await supabaseAdmin.storage.createBucket(BUCKET_NAME, {
       public: true,
       fileSizeLimit: 10 * 1024 * 1024,
+      allowedMimeTypes,
+    });
+  } else {
+    await supabaseAdmin.storage.updateBucket(BUCKET_NAME, {
+      public: true,
+      fileSizeLimit: 10 * 1024 * 1024,
+      allowedMimeTypes,
     });
   }
 }

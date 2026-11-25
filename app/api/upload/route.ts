@@ -14,7 +14,13 @@ async function ensureBucket() {
     await supabaseAdmin.storage.createBucket(BUCKET_NAME, {
       public: true,
       fileSizeLimit: 10 * 1024 * 1024, // 10MB
-      allowedMimeTypes: ['image/webp', 'image/jpeg', 'image/png', 'image/gif'],
+      allowedMimeTypes: [
+        'image/webp',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'application/json',
+      ],
     });
   }
 }
