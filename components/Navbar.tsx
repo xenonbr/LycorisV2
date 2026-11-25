@@ -28,10 +28,13 @@ export default function Navbar() {
         {/* Logo / Monograma */}
         <Link href="/" className="group flex items-center gap-3.5">
           <div className="relative w-11 h-11 rounded-full bg-gradient-to-br from-lycoris-600 via-lycoris-900 to-black p-0.5 shadow-lycoris-glow group-hover:scale-105 transition-transform duration-300">
-            <div className="w-full h-full rounded-full bg-gothic-bg flex items-center justify-center border border-lycoris-500/30">
-              <span className="font-serif text-lg font-bold text-lycoris-400 group-hover:text-lycoris-300 tracking-wider">
-                LG
-              </span>
+            <div className="w-full h-full rounded-full bg-gothic-bg flex items-center justify-center border border-lycoris-500/30 overflow-hidden p-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/favicon.png"
+                alt="Lycoris Garden Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
           </div>
           <div>

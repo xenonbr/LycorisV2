@@ -626,7 +626,7 @@ export default function AdminPage() {
             }`}
           >
             <ImageIcon className="w-4 h-4" />
-            <span>Galeria & Webhooks ({gallery.length})</span>
+            <span>Galeria de Fotos ({gallery.length})</span>
           </button>
 
           <button
@@ -810,176 +810,136 @@ export default function AdminPage() {
         )}
 
         {/* ============================================================== */}
-        {/* ABA 2: GALERIA & FEED WEBHOOK */}
+        {/* ABA 2: GALERIA DE FOTOS */}
         {/* ============================================================== */}
         {activeTab === 'gallery' && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-6 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4">
-                <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-lycoris-500" />
-                  Adicionar Foto Manualmente
-                </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
+              <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-lycoris-500" />
+                Adicionar Foto à Galeria
+              </h2>
 
-                <form onSubmit={handleAddGalleryImage} className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Título do Registro</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Alvorada no Jardim Carmesim"
-                      value={galleryForm.title}
-                      onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs text-zinc-400">
-                      Enviar Arquivo do PC (Compressão Automática WebP)
-                    </label>
-                    <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-dashed border-lycoris-700/60 hover:border-lycoris-500 bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
-                      <Upload className="w-5 h-5 text-lycoris-400" />
-                      <span className="text-xs font-semibold text-zinc-200">
-                        {uploadingImage
-                          ? 'Comprimindo e enviando...'
-                          : 'Clique para escolher uma foto do computador'}
-                      </span>
-                      <span className="text-[11px] text-zinc-500">
-                        PNG, JPG ou WebP • Convertido automaticamente para WebP leve (até 1920px)
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploadingImage}
-                        onChange={handleGalleryFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                    {compressionStats && (
-                      <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                        <span>{compressionStats}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">
-                      Ou URL Direta da Imagem (preenchida automaticamente no upload)
-                    </label>
-                    <input
-                      type="url"
-                      required
-                      placeholder="https://... ou faça upload do arquivo acima"
-                      value={galleryForm.url}
-                      onChange={(e) => setGalleryForm({ ...galleryForm, url: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-zinc-400 mb-1">Autor / Fotógrafo</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Nick no VRChat"
-                        value={galleryForm.author}
-                        onChange={(e) => setGalleryForm({ ...galleryForm, author: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-zinc-400 mb-1">Mundo VRChat</label>
-                      <input
-                        type="text"
-                        placeholder="Nome da Instância"
-                        value={galleryForm.vrchat_world}
-                        onChange={(e) => setGalleryForm({ ...galleryForm, vrchat_world: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
-                  >
-                    Publicar Imagem na Galeria
-                  </button>
-                </form>
-              </div>
-
-              <div className="lg:col-span-6 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4">
-                <div className="flex items-center gap-2">
-                  <Radio className="w-5 h-5 text-lycoris-400 animate-pulse" />
-                  <h2 className="font-serif text-lg font-bold text-white">
-                    Integração de Feed / Webhook
-                  </h2>
-                </div>
-
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Conecte seu Google Drive, Cloudinary ou Supabase Storage para alimentar a galeria automaticamente sempre que novas fotos dos encontros forem adicionadas.
-                </p>
-
-                <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs font-mono text-zinc-300 space-y-1">
-                  <div className="text-[11px] text-zinc-500">ENDPOINT DO WEBHOOK:</div>
-                  <div className="text-lycoris-400">POST /api/gallery</div>
-                  <div className="text-[11px] text-zinc-500 mt-2">PAYLOAD ESPERADO:</div>
-                  <div className="text-[11px] text-zinc-400">
-                    &#123; &quot;title&quot;: &quot;...&quot;, &quot;url&quot;: &quot;https://...&quot;, &quot;author&quot;: &quot;...&quot; &#125;
-                  </div>
+              <form onSubmit={handleAddGalleryImage} className="space-y-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Título do Registro</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Alvorada no Jardim Carmesim"
+                    value={galleryForm.title}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-xs text-zinc-400">Testar Disparo de Foto via Webhook</label>
-                  <div className="flex gap-2">
+                  <label className="block text-xs text-zinc-400">
+                    Enviar Arquivo do PC (Compressão Automática WebP)
+                  </label>
+                  <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-dashed border-lycoris-700/60 hover:border-lycoris-500 bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
+                    <Upload className="w-5 h-5 text-lycoris-400" />
+                    <span className="text-xs font-semibold text-zinc-200">
+                      {uploadingImage
+                        ? 'Comprimindo e enviando...'
+                        : 'Clique para escolher uma foto do computador'}
+                    </span>
+                    <span className="text-[11px] text-zinc-500">
+                      PNG, JPG ou WebP • Convertido automaticamente para WebP leve (até 1920px)
+                    </span>
                     <input
-                      type="url"
-                      placeholder="Cole a URL da foto de teste..."
-                      value={webhookUrlInput}
-                      onChange={(e) => setWebhookUrlInput(e.target.value)}
-                      className="flex-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingImage}
+                      onChange={handleGalleryFileChange}
+                      className="hidden"
                     />
-                    <button
-                      onClick={handleTriggerWebhookTest}
-                      className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
-                    >
-                      Disparar
-                    </button>
-                  </div>
-                  {webhookStatus && (
-                    <p className="text-xs text-lycoris-300 font-medium">{webhookStatus}</p>
+                  </label>
+                  {compressionStats && (
+                    <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>{compressionStats}</span>
+                    </p>
                   )}
                 </div>
-              </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    Ou URL Direta da Imagem (preenchida automaticamente no upload)
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://... ou faça upload do arquivo acima"
+                    value={galleryForm.url}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, url: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Autor / Fotógrafo</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nick no VRChat"
+                      value={galleryForm.author}
+                      onChange={(e) => setGalleryForm({ ...galleryForm, author: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Mundo VRChat</label>
+                    <input
+                      type="text"
+                      placeholder="Nome da Instância"
+                      value={galleryForm.vrchat_world}
+                      onChange={(e) => setGalleryForm({ ...galleryForm, vrchat_world: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
+                >
+                  Publicar Imagem na Galeria
+                </button>
+              </form>
             </div>
 
-            <div className="space-y-4">
+            <div className="lg:col-span-7 space-y-4">
               <h3 className="font-serif text-lg font-bold text-white">Fotos Publicadas ({gallery.length})</h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {gallery.map((img) => (
-                  <div
-                    key={img.id}
-                    className="relative group rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800"
-                  >
-                    <img src={img.url} alt={img.title} className="w-full h-32 object-cover" />
-                    <div className="p-2 space-y-0.5">
-                      <div className="font-semibold text-xs text-white truncate">{img.title}</div>
-                      <div className="text-[10px] text-zinc-400 truncate">{img.author}</div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteGallery(img.id)}
-                      title="Excluir foto"
-                      className="absolute top-2 right-2 p-1.5 rounded-md bg-black/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              {gallery.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
+                  Nenhuma foto publicada na galeria ainda.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {gallery.map((img) => (
+                    <div
+                      key={img.id}
+                      className="relative group rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <img src={img.url} alt={img.title} className="w-full h-32 object-cover" />
+                      <div className="p-2 space-y-0.5">
+                        <div className="font-semibold text-xs text-white truncate">{img.title}</div>
+                        <div className="text-[10px] text-zinc-400 truncate">{img.author}</div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteGallery(img.id)}
+                        title="Excluir foto"
+                        className="absolute top-2 right-2 p-1.5 rounded-md bg-black/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

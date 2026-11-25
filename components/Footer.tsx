@@ -12,8 +12,13 @@ export default function Footer() {
           {/* Coluna 1: Sobre & Marca */}
           <div className="space-y-4 md:col-span-2">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-lycoris-900 flex items-center justify-center border border-lycoris-600/40 text-lycoris-300 font-serif font-bold text-sm">
-                LG
+              <div className="w-8 h-8 rounded-full bg-lycoris-950 flex items-center justify-center border border-lycoris-600/40 overflow-hidden p-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/favicon.png"
+                  alt="Lycoris Garden Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <span className="font-serif text-xl font-bold text-white tracking-wider">
                 LYCORIS <span className="text-lycoris-500">GARDEN</span>
