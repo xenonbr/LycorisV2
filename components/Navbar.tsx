@@ -25,18 +25,14 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
-        {/* Logo / Monograma */}
-        <Link href="/" className="group flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-          <div className="relative w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-full bg-gradient-to-br from-lycoris-600 via-lycoris-900 to-black p-0.5 shadow-lycoris-glow group-hover:scale-105 transition-transform duration-300">
-            <div className="w-full h-full rounded-full bg-gothic-bg flex items-center justify-center border border-lycoris-500/30 overflow-hidden p-1">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/favicon.png"
-                alt="Lycoris Garden Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </div>
+        {/* Logo / Flor de Lycoris */}
+        <Link href="/" className="group flex items-center gap-2.5 sm:gap-3 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/favicon.png"
+            alt="Lycoris Garden Logo"
+            className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 object-contain drop-shadow-[0_0_10px_rgba(225,29,72,0.45)] group-hover:scale-110 transition-transform duration-300"
+          />
           <div className="truncate">
             <span className="font-serif text-lg sm:text-2xl font-bold tracking-wider text-zinc-100 group-hover:text-white transition-colors">
               LYCORIS <span className="text-lycoris-500">GARDEN</span>
