@@ -36,21 +36,28 @@ export default function HomePage() {
                 Inspirado na mística da flor <em>Lycoris Radiata</em> (Red Spider Lily), o <strong>Lycoris Garden</strong> nasceu como um santuário para usuários do VRChat que buscam escapar do ruído convencional. Valorizamos a calma noturna, o respeito mútuo e a celebração da beleza estética.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="p-4 rounded-xl bg-black/40 border border-zinc-800">
-                  <div className="flex items-center gap-2 text-lycoris-400 font-serif font-bold text-sm">
-                    <Moon className="w-4 h-4 text-lycoris-500" />
-                    Atmosfera
+                {/* Bloco 1: Atmosfera (Neon Carmesim) */}
+                <div className="group relative overflow-hidden p-5 rounded-xl bg-gradient-to-br from-lycoris-950/35 via-black/70 to-black/90 border border-lycoris-500/45 hover:border-lycoris-400 shadow-[0_0_20px_-4px_rgba(225,29,72,0.45),inset_0_0_16px_rgba(225,29,72,0.12)] hover:shadow-[0_0_32px_-2px_rgba(244,63,94,0.7),inset_0_0_24px_rgba(225,29,72,0.22)] transition-all duration-300 hover:-translate-y-1">
+                  <div className="pointer-events-none absolute -top-8 -right-8 w-24 h-24 bg-lycoris-500/20 group-hover:bg-lycoris-500/35 rounded-full blur-2xl transition-all duration-300" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-lycoris-400/80 to-transparent" />
+                  <div className="relative z-10 flex items-center gap-2 text-lycoris-300 font-serif font-bold text-sm tracking-wide text-glow">
+                    <Moon className="w-4 h-4 text-lycoris-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.85)]" />
+                    ATMOSFERA
                   </div>
-                  <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                  <p className="relative z-10 text-xs text-zinc-300/90 mt-2 leading-relaxed">
                     Instâncias selecionadas, iluminação suave e trilhas sonoras imersivas.
                   </p>
                 </div>
-                <div className="p-4 rounded-xl bg-black/40 border border-zinc-800">
-                  <div className="flex items-center gap-2 text-gothic-gold font-serif font-bold text-sm">
-                    <Compass className="w-4 h-4 text-gothic-gold" />
-                    Diversão
+
+                {/* Bloco 2: Diversão (Neon Dourado Gótico) */}
+                <div className="group relative overflow-hidden p-5 rounded-xl bg-gradient-to-br from-amber-950/25 via-black/70 to-black/90 border border-gothic-gold/45 hover:border-gothic-gold shadow-[0_0_20px_-4px_rgba(218,175,55,0.4),inset_0_0_16px_rgba(218,175,55,0.1)] hover:shadow-[0_0_32px_-2px_rgba(218,175,55,0.68),inset_0_0_24px_rgba(218,175,55,0.2)] transition-all duration-300 hover:-translate-y-1">
+                  <div className="pointer-events-none absolute -top-8 -right-8 w-24 h-24 bg-gothic-gold/15 group-hover:bg-gothic-gold/30 rounded-full blur-2xl transition-all duration-300" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-gothic-gold/80 to-transparent" />
+                  <div className="relative z-10 flex items-center gap-2 text-gothic-gold font-serif font-bold text-sm tracking-wide gold-glow">
+                    <Compass className="w-4 h-4 text-gothic-gold drop-shadow-[0_0_8px_rgba(218,175,55,0.85)]" />
+                    DIVERSÃO
                   </div>
-                  <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                  <p className="relative z-10 text-xs text-zinc-300/90 mt-2 leading-relaxed">
                     Mais do que flores, criamos ambientes vivos para relaxar e trocar experiências.
                   </p>
                 </div>
