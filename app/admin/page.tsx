@@ -977,27 +977,6 @@ export default function AdminPage() {
                   />
                 </div>
 
-                {/* Toggle Efeito Cristal Glass Vermelho (Dona / Destaque) */}
-                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-lycoris-950/70 via-zinc-900 to-zinc-950 border border-lycoris-700/50 hover:border-lycoris-500 cursor-pointer transition-all">
-                  <input
-                    type="checkbox"
-                    checked={supporterForm.is_owner}
-                    onChange={(e) =>
-                      setSupporterForm({ ...supporterForm, is_owner: e.target.checked })
-                    }
-                    className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer"
-                  />
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-lycoris-200 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-lycoris-400" />
-                      Destaque Carmesim Cristal Glass (Dona / Fundadora)
-                    </span>
-                    <span className="block text-[11px] text-zinc-400 leading-snug">
-                      Troca o brilho dourado por vermelho carmesim translúcido em estilo cristal glass.
-                    </span>
-                  </div>
-                </label>
-
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -1560,27 +1539,6 @@ export default function AdminPage() {
                 <label className="block text-xs text-zinc-300 font-semibold">
                   Adicionar Palavra Sensível Extra ao Bloqueio
                 </label>
-                {/* Toggle Efeito Cristal Glass Vermelho (Dona / Destaque) */}
-                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-lycoris-950/70 via-zinc-900 to-zinc-950 border border-lycoris-700/50 hover:border-lycoris-500 cursor-pointer transition-all">
-                  <input
-                    type="checkbox"
-                    checked={supporterForm.is_owner}
-                    onChange={(e) =>
-                      setSupporterForm({ ...supporterForm, is_owner: e.target.checked })
-                    }
-                    className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer"
-                  />
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-lycoris-200 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-lycoris-400" />
-                      Destaque Carmesim Cristal Glass (Dona / Fundadora)
-                    </span>
-                    <span className="block text-[11px] text-zinc-400 leading-snug">
-                      Troca o brilho dourado por vermelho carmesim translúcido em estilo cristal glass.
-                    </span>
-                  </div>
-                </label>
-
                 <div className="flex gap-2">
                   <input
                     type="text"
