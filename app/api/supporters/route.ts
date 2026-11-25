@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nome e uma URL válida (http/https) são obrigatórios.' }, { status: 400 });
     }
 
+    const isOwner = Boolean(body.is_owner);
     const supporter = {
       id: crypto.randomUUID(),
       name,
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       tagline: String(body.tagline || '').trim(),
       role: String(body.role || 'Apoiador').trim(),
       avatar: body.avatar && isValidUrl(String(body.avatar)) ? String(body.avatar).trim() : null,
-      sort_order: Number(body.sort_order) || 0,
+      sort_order: isOwner ? -1 : Number(body.sort_order) || 0,
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
@@ -75,12 +76,14 @@ export async function PUT(request: Request) {
     if (!String(body.name || '').trim() || !isValidUrl(url)) {
       return NextResponse.json({ error: 'Nome e uma URL válida são obrigatórios.' }, { status: 400 });
     }
+    const isOwner = Boolean(body.is_owner);
     const patch = {
       name: String(body.name).trim(),
       url,
       tagline: String(body.tagline || '').trim(),
       role: String(body.role || 'Apoiador').trim(),
       avatar: body.avatar && isValidUrl(String(body.avatar)) ? String(body.avatar).trim() : null,
+      sort_order: isOwner ? -1 : 0,
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {

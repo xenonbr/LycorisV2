@@ -39,6 +39,7 @@ export interface Supporter {
   role: string;
   avatar?: string | null;
   sort_order?: number;
+  is_owner?: boolean;
 }
 
 export interface EventRegistration {

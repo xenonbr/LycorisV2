@@ -37,7 +37,14 @@ function api(url: string, init: RequestInit = {}) {
   });
 }
 
-const EMPTY_SUPPORTER = { name: '', url: '', tagline: '', role: 'Apoiador', avatar: '' };
+const EMPTY_SUPPORTER = {
+  name: '',
+  url: '',
+  tagline: '',
+  role: 'Apoiador',
+  avatar: '',
+  is_owner: false,
+};
 const EMPTY_EVENT = {
   title: '',
   description: '',
@@ -407,6 +414,7 @@ export default function AdminPage() {
       tagline: s.tagline || '',
       role: s.role || 'Apoiador',
       avatar: s.avatar || '',
+      is_owner: Boolean(s.is_owner || (s.sort_order ?? 0) < 0),
     });
   };
 
@@ -969,6 +977,27 @@ export default function AdminPage() {
                   />
                 </div>
 
+                {/* Toggle Efeito Cristal Glass Vermelho (Dona / Destaque) */}
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-lycoris-950/70 via-zinc-900 to-zinc-950 border border-lycoris-700/50 hover:border-lycoris-500 cursor-pointer transition-all">
+                  <input
+                    type="checkbox"
+                    checked={supporterForm.is_owner}
+                    onChange={(e) =>
+                      setSupporterForm({ ...supporterForm, is_owner: e.target.checked })
+                    }
+                    className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                  />
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-lycoris-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-lycoris-400" />
+                      Destaque Carmesim Cristal Glass (Dona / Fundadora)
+                    </span>
+                    <span className="block text-[11px] text-zinc-400 leading-snug">
+                      Troca o brilho dourado por vermelho carmesim translúcido em estilo cristal glass.
+                    </span>
+                  </div>
+                </label>
+
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -1313,6 +1342,27 @@ export default function AdminPage() {
                     )}
                   </div>
                 ))}
+                {/* Toggle Efeito Cristal Glass Vermelho (Dona / Destaque) */}
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-lycoris-950/70 via-zinc-900 to-zinc-950 border border-lycoris-700/50 hover:border-lycoris-500 cursor-pointer transition-all">
+                  <input
+                    type="checkbox"
+                    checked={supporterForm.is_owner}
+                    onChange={(e) =>
+                      setSupporterForm({ ...supporterForm, is_owner: e.target.checked })
+                    }
+                    className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                  />
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-lycoris-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-lycoris-400" />
+                      Destaque Carmesim Cristal Glass (Dona / Fundadora)
+                    </span>
+                    <span className="block text-[11px] text-zinc-400 leading-snug">
+                      Troca o brilho dourado por vermelho carmesim translúcido em estilo cristal glass.
+                    </span>
+                  </div>
+                </label>
+
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -1347,11 +1397,22 @@ export default function AdminPage() {
                   className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
                 >
                   <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-white text-sm">{s.name}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded border border-gothic-gold/30 text-gothic-gold">
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded border ${
+                          (s.sort_order ?? 0) < 0
+                            ? 'bg-lycoris-950/80 border-lycoris-500/50 text-lycoris-300 font-semibold'
+                            : 'border-gothic-gold/30 text-gothic-gold'
+                        }`}
+                      >
                         {s.role}
                       </span>
+                      {(s.sort_order ?? 0) < 0 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-lycoris-600/20 border border-lycoris-500/40 text-lycoris-300 font-semibold">
+                          Cristal Carmesim
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-zinc-400 truncate">{s.tagline}</p>
                     <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-lycoris-400 hover:underline truncate block">
@@ -1499,6 +1560,27 @@ export default function AdminPage() {
                 <label className="block text-xs text-zinc-300 font-semibold">
                   Adicionar Palavra Sensível Extra ao Bloqueio
                 </label>
+                {/* Toggle Efeito Cristal Glass Vermelho (Dona / Destaque) */}
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-lycoris-950/70 via-zinc-900 to-zinc-950 border border-lycoris-700/50 hover:border-lycoris-500 cursor-pointer transition-all">
+                  <input
+                    type="checkbox"
+                    checked={supporterForm.is_owner}
+                    onChange={(e) =>
+                      setSupporterForm({ ...supporterForm, is_owner: e.target.checked })
+                    }
+                    className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                  />
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-lycoris-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-lycoris-400" />
+                      Destaque Carmesim Cristal Glass (Dona / Fundadora)
+                    </span>
+                    <span className="block text-[11px] text-zinc-400 leading-snug">
+                      Troca o brilho dourado por vermelho carmesim translúcido em estilo cristal glass.
+                    </span>
+                  </div>
+                </label>
+
                 <div className="flex gap-2">
                   <input
                     type="text"
