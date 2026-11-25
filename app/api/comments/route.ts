@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { isAdminRequest, unauthorized } from '@/lib/auth';
 import { INITIAL_GALLERY } from '@/lib/mockData';
+import { validateCommentInput } from '@/lib/moderation';
+import { getCustomBlockedWords } from '@/app/api/moderation/route';
+
+export const dynamic = 'force-dynamic';
 
 let localComments = INITIAL_GALLERY.flatMap((img) => img.comments || []);
 
@@ -9,8 +13,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const imageId = searchParams.get('imageId');
 
-  if (isSupabaseConfigured && supabase) {
-    let query = supabase.from('comments').select('*').order('created_at', { ascending: false });
+  const client = supabaseAdmin || supabase;
+  if (isSupabaseConfigured && client) {
+    let query = client.from('comments').select('*').order('created_at', { ascending: false });
     if (imageId) {
       query = query.eq('image_id', imageId);
     }
@@ -31,11 +36,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { image_id, author_name, content } = body;
 
-    if (!image_id || !author_name?.trim() || !content?.trim()) {
-      return NextResponse.json(
-        { error: 'Campos image_id, author_name e content são obrigatórios' },
-        { status: 400 }
-      );
+    if (!image_id) {
+      return NextResponse.json({ error: 'ID da imagem é obrigatório.' }, { status: 400 });
+    }
+
+    const extraWords = await getCustomBlockedWords();
+    const check = validateCommentInput(author_name, content, extraWords);
+    if (!check.valid) {
+      return NextResponse.json({ error: check.error }, { status: 400 });
     }
 
     const newComment = {
@@ -46,8 +54,9 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString(),
     };
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase
+    const client = supabaseAdmin || supabase;
+    if (isSupabaseConfigured && client) {
+      const { data, error } = await client
         .from('comments')
         .insert([newComment])
         .select()

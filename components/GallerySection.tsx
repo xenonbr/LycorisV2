@@ -4,6 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Camera, MessageSquare, Heart, X, Send, User } from 'lucide-react';
 import { GalleryImage, CommentItem } from '@/lib/types';
+import {
+  MAX_COMMENT_LENGTH,
+  MAX_AUTHOR_LENGTH,
+  stripForbiddenChars,
+  validateCommentInput,
+} from '@/lib/moderation';
 
 export default function GallerySection() {
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -12,6 +18,7 @@ export default function GallerySection() {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [authorName, setAuthorName] = useState('');
   const [newComment, setNewComment] = useState('');
+  const [commentError, setCommentError] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
 
@@ -63,6 +70,7 @@ export default function GallerySection() {
   const closeLightbox = () => {
     setActiveImage(null);
     setNewComment('');
+    setCommentError('');
   };
 
   // Trava o scroll da página de fundo e fecha com ESC quando uma foto está aberta
@@ -139,32 +147,43 @@ export default function GallerySection() {
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeImage || !authorName.trim() || !newComment.trim()) return;
+    if (!activeImage) return;
+    setCommentError('');
+
+    const check = validateCommentInput(authorName, newComment);
+    if (!check.valid) {
+      setCommentError(check.error || 'Comentário inválido.');
+      return;
+    }
 
     setSubmittingComment(true);
-    const optimisticComment: CommentItem = {
-      id: 'comm-' + Date.now(),
-      image_id: activeImage.id,
-      author_name: authorName.trim(),
-      content: newComment.trim(),
-      created_at: new Date().toISOString(),
-    };
-
-    setComments((prev) => [optimisticComment, ...prev]);
-    setNewComment('');
-
     try {
-      await fetch('/api/comments', {
+      const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image_id: activeImage.id,
           author_name: authorName.trim(),
-          content: optimisticComment.content,
+          content: newComment.trim(),
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCommentError(data.error || 'Não foi possível enviar o comentário.');
+        return;
+      }
+      setComments((prev) => [data, ...prev]);
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === activeImage.id
+            ? { ...img, comments: [data, ...(img.comments || [])] }
+            : img
+        )
+      );
+      setNewComment('');
     } catch (err) {
       console.error('Falha ao persistir comentário:', err);
+      setCommentError('Erro de conexão ao enviar comentário.');
     } finally {
       setSubmittingComment(false);
     }
@@ -342,23 +361,36 @@ export default function GallerySection() {
                   </div>
                 </div>
 
-                <form onSubmit={handleAddComment} className="pt-4 mt-4 border-t border-zinc-800/80 space-y-3 shrink-0">
+                <form onSubmit={handleAddComment} className="pt-4 mt-4 border-t border-zinc-800/80 space-y-2.5 shrink-0">
+                  {commentError && (
+                    <div className="px-3 py-2 rounded-lg bg-red-950/70 border border-red-800/80 text-[11px] text-red-200">
+                      {commentError}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <input
                       type="text"
                       required
+                      maxLength={MAX_AUTHOR_LENGTH}
                       placeholder="Seu nome ou Nick no VRChat..."
                       value={authorName}
-                      onChange={(e) => setAuthorName(e.target.value)}
+                      onChange={(e) => {
+                        setCommentError('');
+                        setAuthorName(stripForbiddenChars(e.target.value, true));
+                      }}
                       className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none"
                     />
                     <div className="relative">
                       <textarea
                         required
                         rows={2}
-                        placeholder="Deixe uma mensagem sobre esta memória..."
+                        maxLength={MAX_COMMENT_LENGTH}
+                        placeholder="Deixe uma mensagem (apenas texto, máx. 150 caracteres)..."
                         value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
+                        onChange={(e) => {
+                          setCommentError('');
+                          setNewComment(stripForbiddenChars(e.target.value, false));
+                        }}
                         className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none resize-none pr-10"
                       />
                       <button
@@ -369,6 +401,12 @@ export default function GallerySection() {
                       >
                         <Send className="w-3.5 h-3.5" />
                       </button>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-zinc-500 px-0.5">
+                      <span>Sem links, emojis ou símbolos especiais</span>
+                      <span className={newComment.length >= MAX_COMMENT_LENGTH ? 'text-lycoris-400 font-semibold' : ''}>
+                        {newComment.length}/{MAX_COMMENT_LENGTH}
+                      </span>
                     </div>
                   </div>
                 </form>

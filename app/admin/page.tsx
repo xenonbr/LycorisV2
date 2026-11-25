@@ -102,6 +102,9 @@ export default function AdminPage() {
   const [supporters, setSupporters] = useState<Supporter[]>([]);
   const [heroStats, setHeroStats] = useState<HeroStat[]>(INITIAL_HERO_STATS);
   const [savingStats, setSavingStats] = useState(false);
+  const [customBlockedWords, setCustomBlockedWords] = useState<string[]>([]);
+  const [newBlockedWord, setNewBlockedWord] = useState('');
+  const [savingBlockedWords, setSavingBlockedWords] = useState(false);
   const [regFilter, setRegFilter] = useState('');
   const [supporterForm, setSupporterForm] = useState(EMPTY_SUPPORTER);
   const [editingSupporterId, setEditingSupporterId] = useState<string | null>(null);
@@ -237,13 +240,14 @@ export default function AdminPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [resEv, resGal, resComm, resReg, resSup, resStats] = await Promise.all([
+      const [resEv, resGal, resComm, resReg, resSup, resStats, resMod] = await Promise.all([
         api('/api/events'),
         api('/api/gallery'),
         api('/api/comments'),
         api('/api/registrations'),
         api('/api/supporters'),
         api('/api/stats'),
+        api('/api/moderation'),
       ]);
 
       if (resReg.status === 401) {
@@ -256,12 +260,52 @@ export default function AdminPage() {
         const s = await resStats.json();
         if (Array.isArray(s) && s.length > 0) setHeroStats(s);
       }
+      if (resMod.ok) {
+        const m = await resMod.json();
+        if (Array.isArray(m.words)) setCustomBlockedWords(m.words);
+      }
       if (resEv.ok) setEvents(await resEv.json());
       if (resGal.ok) setGallery(await resGal.json());
       if (resComm.ok) setAllComments(await resComm.json());
     } catch (err) {
       console.warn('Erro ao atualizar dados do painel:', err);
     }
+  };
+
+  // Filtro de palavras bloqueadas nos comentários
+  const saveBlockedWordsList = async (nextWords: string[]) => {
+    setSavingBlockedWords(true);
+    try {
+      const res = await api('/api/moderation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ words: nextWords }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.words)) {
+        setCustomBlockedWords(data.words);
+        showToast('Filtro de palavras atualizado!');
+      } else {
+        showToast(data.error || 'Erro ao atualizar filtro');
+      }
+    } catch {
+      showToast('Erro ao atualizar filtro');
+    } finally {
+      setSavingBlockedWords(false);
+    }
+  };
+
+  const handleAddBlockedWord = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const w = newBlockedWord.trim().toLowerCase();
+    if (!w || w.length < 2) return;
+    setNewBlockedWord('');
+    if (customBlockedWords.includes(w)) return;
+    await saveBlockedWordsList([...customBlockedWords, w]);
+  };
+
+  const handleRemoveBlockedWord = async (word: string) => {
+    await saveBlockedWordsList(customBlockedWords.filter((w) => w !== word));
   };
 
   // Destaques do Topo (Hero Stats)
@@ -1283,50 +1327,117 @@ export default function AdminPage() {
         {/* ABA 3: MODERAÇÃO DE COMENTÁRIOS */}
         {/* ============================================================== */}
         {activeTab === 'comments' && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-serif text-lg font-bold text-white">
-                Fila de Moderação de Mensagens ({allComments.length})
-              </h2>
-              <p className="text-xs text-zinc-400">
-                Remova instantaneamente comentários inadequados deixados por visitantes nas fotos da galeria.
-              </p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
+              <div>
+                <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-lycoris-500" />
+                  Filtro Automático de Comentários
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                  Regras já ativas automaticamente: limite de <strong>150 caracteres</strong>, bloqueio de <strong>links</strong>, <strong>emojis</strong>, <strong>símbolos especiais</strong> e lista nativa de palavrões/ofensas em PT-BR e EN.
+                </p>
+              </div>
+
+              <form onSubmit={handleAddBlockedWord} className="space-y-2">
+                <label className="block text-xs text-zinc-300 font-semibold">
+                  Adicionar Palavra Sensível Extra ao Bloqueio
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={40}
+                    placeholder="Digite uma palavra para bloquear..."
+                    value={newBlockedWord}
+                    onChange={(e) => setNewBlockedWord(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingBlockedWords || newBlockedWord.trim().length < 2}
+                    className="px-4 py-2 rounded-lg bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-40 text-white text-xs font-semibold"
+                  >
+                    Bloquear
+                  </button>
+                </div>
+              </form>
+
+              <div className="space-y-2">
+                <span className="block text-[11px] uppercase tracking-wider text-zinc-500 font-bold">
+                  Palavras Extras Bloqueadas ({customBlockedWords.length})
+                </span>
+                {customBlockedWords.length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic">
+                    Nenhuma palavra extra adicionada (o filtro padrão de palavrões já está ativo).
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {customBlockedWords.map((w) => (
+                      <span
+                        key={w}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300"
+                      >
+                        <span>{w}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBlockedWord(w)}
+                          className="text-zinc-500 hover:text-red-400"
+                          title="Remover palavra"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {allComments.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500 text-xs">
-                Nenhum comentário registrado na plataforma no momento.
+            <div className="lg:col-span-7 space-y-4">
+              <div>
+                <h2 className="font-serif text-lg font-bold text-white">
+                  Fila de Moderação de Mensagens ({allComments.length})
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  Remova instantaneamente comentários inadequados deixados por visitantes nas fotos da galeria.
+                </p>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {allComments.map((comm) => (
-                  <div
-                    key={comm.id}
-                    className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-lycoris-400 text-xs">
-                          {comm.author_name}
-                        </span>
-                        <span className="text-[10px] text-zinc-500">
-                          {new Date(comm.created_at).toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-200">{comm.content}</p>
-                    </div>
 
-                    <button
-                      onClick={() => handleDeleteComment(comm.id)}
-                      className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
+              {allComments.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
+                  Nenhum comentário registrado na plataforma no momento.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allComments.map((comm) => (
+                    <div
+                      key={comm.id}
+                      className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Excluir</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-lycoris-400 text-xs">
+                            {comm.author_name}
+                          </span>
+                          <span className="text-[10px] text-zinc-500">
+                            {new Date(comm.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-200 break-words">{comm.content}</p>
+                      </div>
+
+                      <button
+                        onClick={() => handleDeleteComment(comm.id)}
+                        className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
