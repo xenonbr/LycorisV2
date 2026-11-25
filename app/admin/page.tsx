@@ -20,6 +20,7 @@ import {
   Users,
   HeartHandshake,
   Download,
+  Upload,
 } from 'lucide-react';
 import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_GALLERY } from '@/lib/mockData';
@@ -37,6 +38,53 @@ function api(url: string, init: RequestInit = {}) {
 }
 
 const EMPTY_SUPPORTER = { name: '', url: '', tagline: '', role: 'Apoiador', avatar: '' };
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+// Comprime imagem no navegador para WebP (max 1920px, qualidade 82%) antes de subir
+async function compressImageFile(file: File, maxDim = 1920, quality = 0.82): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas não suportado'));
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error('Falha ao comprimir imagem'));
+          const baseName = file.name.replace(/\.[^.]+$/, '') || 'photo';
+          resolve(new File([blob], `${baseName}.webp`, { type: 'image/webp' }));
+        },
+        'image/webp',
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Arquivo de imagem inválido'));
+    };
+    img.src = objectUrl;
+  });
+}
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -79,6 +127,69 @@ export default function AdminPage() {
   // Teste de Webhook / Feed Automático
   const [webhookUrlInput, setWebhookUrlInput] = useState('');
   const [webhookStatus, setWebhookStatus] = useState<string | null>(null);
+
+  // Estados de Upload e Compressão de Imagem do PC
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [compressionStats, setCompressionStats] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    setCompressionStats('Comprimindo e otimizando imagem...');
+    try {
+      const originalSize = file.size;
+      const compressed = await compressImageFile(file, 1920, 0.82);
+      const savedPct = Math.max(0, Math.round((1 - compressed.size / originalSize) * 100));
+
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'gallery');
+
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+
+      setGalleryForm((prev) => ({
+        ...prev,
+        url: data.url,
+        title: prev.title || file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+      }));
+      setCompressionStats(
+        `Comprimido: ${formatBytes(originalSize)} → ${formatBytes(compressed.size)} (WebP, -${savedPct}% de espaço)`
+      );
+      showToast('Imagem comprimida e enviada!');
+    } catch (err: any) {
+      setCompressionStats(null);
+      showToast(err.message || 'Erro ao enviar arquivo');
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSupporterAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const compressed = await compressImageFile(file, 512, 0.85);
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'supporters');
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+      setSupporterForm((prev) => ({ ...prev, avatar: data.url }));
+      showToast('Logo comprimida e enviada!');
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao enviar logo');
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     if (sessionStorage.getItem(TOKEN_KEY)) {
@@ -296,6 +407,7 @@ export default function AdminPage() {
           author: '',
           vrchat_world: 'Lycoris Garden Sanctuary',
         });
+        setCompressionStats(null);
         showToast('Foto adicionada à galeria!');
       }
     } catch (err) {
@@ -722,12 +834,44 @@ export default function AdminPage() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <label className="block text-xs text-zinc-400">
+                      Enviar Arquivo do PC (Compressão Automática WebP)
+                    </label>
+                    <label className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-dashed border-lycoris-700/60 hover:border-lycoris-500 bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
+                      <Upload className="w-5 h-5 text-lycoris-400" />
+                      <span className="text-xs font-semibold text-zinc-200">
+                        {uploadingImage
+                          ? 'Comprimindo e enviando...'
+                          : 'Clique para escolher uma foto do computador'}
+                      </span>
+                      <span className="text-[11px] text-zinc-500">
+                        PNG, JPG ou WebP • Convertido automaticamente para WebP leve (até 1920px)
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingImage}
+                        onChange={handleGalleryFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {compressionStats && (
+                      <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{compressionStats}</span>
+                      </p>
+                    )}
+                  </div>
+
                   <div>
-                    <label className="block text-xs text-zinc-400 mb-1">URL Direta da Imagem</label>
+                    <label className="block text-xs text-zinc-400 mb-1">
+                      Ou URL Direta da Imagem (preenchida automaticamente no upload)
+                    </label>
                     <input
                       type="url"
                       required
-                      placeholder="https://... ou caminho local /images/..."
+                      placeholder="https://... ou faça upload do arquivo acima"
                       value={galleryForm.url}
                       onChange={(e) => setGalleryForm({ ...galleryForm, url: e.target.value })}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
@@ -945,6 +1089,19 @@ export default function AdminPage() {
                       onChange={(e) => setSupporterForm({ ...supporterForm, [key]: e.target.value })}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
                     />
+                    {key === 'avatar' && (
+                      <label className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-lycoris-300 cursor-pointer transition-colors">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{uploadingAvatar ? 'Comprimindo...' : 'Ou enviar logo do PC'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingAvatar}
+                          onChange={handleSupporterAvatarFile}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
                   </div>
                 ))}
                 <div className="flex gap-2">

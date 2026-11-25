@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Sparkles, Calendar, Image as ImageIcon, HeartHandshake, Shield, ExternalLink, Menu, X } from 'lucide-react';
+import { Sparkles, Calendar, Image as ImageIcon, HeartHandshake, ExternalLink, Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -74,13 +74,6 @@ export default function Navbar() {
             <HeartHandshake className="w-4 h-4 text-gothic-gold" />
             Apoiadores
           </Link>
-          <Link
-            href="/admin"
-            className="text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1 text-xs border border-zinc-800 px-2.5 py-1 rounded-md hover:border-lycoris-900/60"
-          >
-            <Shield className="w-3.5 h-3.5 text-lycoris-400" />
-            Admin
-          </Link>
         </nav>
 
         {/* Botão de Ação Direto (Filiação VRChat) */}
@@ -141,13 +134,6 @@ export default function Navbar() {
             className="block text-zinc-300 hover:text-lycoris-400 font-medium py-1"
           >
             Apoiadores
-          </Link>
-          <Link
-            href="/admin"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-zinc-400 hover:text-zinc-200 text-sm py-1"
-          >
-            Painel Administrativo
           </Link>
           <div className="pt-3">
             <a
