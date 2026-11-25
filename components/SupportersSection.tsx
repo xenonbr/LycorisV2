@@ -28,7 +28,8 @@ export default function SupportersSection() {
   const durationSeconds = Math.max(28, halfList.length * 9);
 
   return (
-    <section id="apoiadores" className="relative py-16 sm:py-28 max-w-7xl mx-auto z-10 overflow-hidden">
+    <section id="apoiadores" className="relative py-16 sm:py-28 w-full max-w-full overflow-hidden z-10">
+      <div className="max-w-7xl mx-auto">
       <div className="text-center space-y-4 mb-10 sm:mb-16 px-4 sm:px-6 lg:px-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950/70 border border-gothic-gold/30 text-gothic-gold text-xs font-semibold uppercase tracking-widest">
           <Award className="w-3.5 h-3.5" />
@@ -107,6 +108,7 @@ export default function SupportersSection() {
             </div>
           ))}
         </div>
+      </div>
       </div>
     </section>
   );

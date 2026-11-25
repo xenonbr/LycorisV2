@@ -10,7 +10,7 @@ import { Moon, Sparkles, Compass, Shield, Heart } from 'lucide-react';
 
 export default function HomePage() {
   return (
-    <main className="relative min-h-screen flex flex-col bg-gothic-bg">
+    <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden flex flex-col bg-gothic-bg">
       {/* Camada Interativa de Pétalas de Lycoris Flutuando */}
       <LycorisParticles />
 
