@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, MessageSquare, Heart, X, Send, User } from 'lucide-react';
 import { GalleryImage, CommentItem } from '@/lib/types';
 
@@ -63,6 +64,23 @@ export default function GallerySection() {
     setActiveImage(null);
     setNewComment('');
   };
+
+  // Trava o scroll da página de fundo e fecha com ESC quando uma foto está aberta
+  useEffect(() => {
+    if (!activeImage) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') closeLightbox();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeImage]);
 
   // Gerenciamento de curtidas com sincronização no Supabase e no localStorage
   const handleLike = async (id: string, e: React.MouseEvent) => {
@@ -233,124 +251,132 @@ export default function GallerySection() {
         </div>
       )}
 
-      {activeImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-6"
-          onClick={closeLightbox}
-        >
+      {activeImage &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="relative max-w-6xl w-full max-h-[90vh] bg-gothic-card rounded-2xl border border-lycoris-900/40 shadow-2xl overflow-hidden flex flex-col lg:flex-row"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-3 sm:p-6 overscroll-contain"
+            onClick={closeLightbox}
           >
-            <button
-              onClick={closeLightbox}
-              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 hover:bg-black/90 text-zinc-300 hover:text-white transition-colors border border-zinc-700"
-              aria-label="Fechar modal"
+            <div
+              className="relative max-w-6xl w-full max-h-[92vh] lg:h-[86vh] bg-gothic-card rounded-2xl border border-lycoris-900/50 shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X className="w-5 h-5" />
-            </button>
+              <button
+                onClick={closeLightbox}
+                className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/75 hover:bg-lycoris-700 text-zinc-200 hover:text-white transition-colors border border-zinc-700"
+                aria-label="Fechar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            <div className="lg:w-7/12 bg-black flex items-center justify-center p-4 relative min-h-[300px] lg:min-h-[600px]">
-              <img
-                src={activeImage.url}
-                alt="Registro em tela cheia"
-                className="max-h-[80vh] w-auto max-w-full object-contain rounded-lg shadow-lg"
-              />
-            </div>
-
-            <div className="lg:w-5/12 p-6 flex flex-col justify-between bg-zinc-950 border-t lg:border-t-0 lg:border-l border-zinc-800/80 overflow-y-auto max-h-[85vh]">
-              <div>
-                <div className="space-y-2 pb-4 border-b border-zinc-800">
-                  <span className="text-xs uppercase tracking-wider text-lycoris-400 font-semibold">
-                    {activeImage.vrchat_world || 'Lycoris Garden Sanctuary'}
-                  </span>
-                  <div className="flex items-center justify-between text-xs text-zinc-400 pt-1">
-                    <span className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-lycoris-500" />
-                      Capturada por <strong className="text-zinc-200">{activeImage.author}</strong>
-                    </span>
-                    <button
-                      onClick={(e) => handleLike(activeImage.id, e)}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 hover:border-lycoris-600/50 text-xs text-zinc-300 transition-colors"
-                    >
-                      <Heart
-                        className={`w-3.5 h-3.5 transition-colors ${
-                          likedMap[activeImage.id] ? 'fill-lycoris-500 text-lycoris-500' : 'text-zinc-400'
-                        }`}
-                      />
-                      <span>{activeImage.likes} curtidas</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-4 space-y-4">
-                  <h4 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-lycoris-500" />
-                    Comentários ({comments.length})
-                  </h4>
-
-                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                    {comments.length === 0 ? (
-                      <p className="text-xs text-zinc-500 italic py-4 text-center">
-                        Nenhum comentário ainda. Deixe sua mensagem nesta memória!
-                      </p>
-                    ) : (
-                      comments.map((comm) => (
-                        <div
-                          key={comm.id}
-                          className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-xs space-y-1"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-lycoris-300">{comm.author_name}</span>
-                            <span className="text-[10px] text-zinc-500">
-                              {new Date(comm.created_at).toLocaleTimeString('pt-BR', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                          <p className="text-zinc-300 leading-relaxed font-sans">{comm.content}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+              <div className="lg:w-7/12 bg-black flex items-center justify-center p-4 sm:p-6 relative min-h-[260px] lg:h-full overflow-auto">
+                <img
+                  src={activeImage.url}
+                  alt={activeImage.title || 'Registro em tela cheia'}
+                  className="max-h-[75vh] lg:max-h-full w-auto max-w-full object-contain rounded-lg shadow-lg"
+                />
               </div>
 
-              <form onSubmit={handleAddComment} className="pt-4 mt-4 border-t border-zinc-800/80 space-y-3">
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Seu nome ou Nick no VRChat..."
-                    value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none"
-                  />
-                  <div className="relative">
-                    <textarea
-                      required
-                      rows={2}
-                      placeholder="Deixe uma mensagem sobre esta memória..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none resize-none pr-10"
-                    />
-                    <button
-                      type="submit"
-                      disabled={submittingComment || !authorName.trim() || !newComment.trim()}
-                      className="absolute right-2 bottom-3 p-1.5 rounded-md bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-40 text-white transition-colors"
-                      title="Enviar comentário"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
+              <div className="lg:w-5/12 p-5 sm:p-6 flex flex-col justify-between bg-zinc-950 border-t lg:border-t-0 lg:border-l border-zinc-800/80 lg:h-full overflow-hidden">
+                <div className="flex flex-col min-h-0 flex-1">
+                  <div className="space-y-1.5 pb-4 pr-10 border-b border-zinc-800 shrink-0">
+                    <span className="text-[11px] uppercase tracking-wider text-lycoris-400 font-semibold block">
+                      {activeImage.vrchat_world || 'Lycoris Garden Sanctuary'}
+                    </span>
+                    {activeImage.title && (
+                      <h3 className="font-serif text-lg sm:text-xl font-bold text-white leading-snug">
+                        {activeImage.title}
+                      </h3>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-zinc-400 pt-1">
+                      <span className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-lycoris-500" />
+                        Capturada por <strong className="text-zinc-200">{activeImage.author}</strong>
+                      </span>
+                      <button
+                        onClick={(e) => handleLike(activeImage.id, e)}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 hover:border-lycoris-600/50 text-xs text-zinc-300 transition-colors"
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 transition-colors ${
+                            likedMap[activeImage.id] ? 'fill-lycoris-500 text-lycoris-500' : 'text-zinc-400'
+                          }`}
+                        />
+                        <span>{activeImage.likes} curtidas</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex flex-col min-h-0 flex-1">
+                    <h4 className="text-sm font-semibold text-zinc-300 flex items-center gap-2 mb-3 shrink-0">
+                      <MessageSquare className="w-4 h-4 text-lycoris-500" />
+                      Comentários ({comments.length})
+                    </h4>
+
+                    <div className="space-y-3 overflow-y-auto overscroll-contain pr-1.5 flex-1 min-h-[140px] max-h-[38vh] lg:max-h-none">
+                      {comments.length === 0 ? (
+                        <p className="text-xs text-zinc-500 italic py-4 text-center">
+                          Nenhum comentário ainda. Deixe sua mensagem nesta memória!
+                        </p>
+                      ) : (
+                        comments.map((comm) => (
+                          <div
+                            key={comm.id}
+                            className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-xs space-y-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-lycoris-300">{comm.author_name}</span>
+                              <span className="text-[10px] text-zinc-500">
+                                {new Date(comm.created_at).toLocaleTimeString('pt-BR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-zinc-300 leading-relaxed font-sans break-words">{comm.content}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
-              </form>
+
+                <form onSubmit={handleAddComment} className="pt-4 mt-4 border-t border-zinc-800/80 space-y-3 shrink-0">
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Seu nome ou Nick no VRChat..."
+                      value={authorName}
+                      onChange={(e) => setAuthorName(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none"
+                    />
+                    <div className="relative">
+                      <textarea
+                        required
+                        rows={2}
+                        placeholder="Deixe uma mensagem sobre esta memória..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none resize-none pr-10"
+                      />
+                      <button
+                        type="submit"
+                        disabled={submittingComment || !authorName.trim() || !newComment.trim()}
+                        className="absolute right-2 bottom-3 p-1.5 rounded-md bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-40 text-white transition-colors"
+                        title="Enviar comentário"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </section>
   );
 }
