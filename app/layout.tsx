@@ -30,6 +30,14 @@ export const metadata: Metadata = {
     "Eventos Noturnos",
   ],
   authors: [{ name: "Lycoris Garden Team" }],
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "256x256" },
+      { url: "/icon.png", type: "image/png", sizes: "256x256" },
+    ],
+    shortcut: "/favicon.png",
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
     title: "Lycoris Garden | Comunidade VRChat Oficial",
     description: "Mais do que plantas, criamos ambientes vivos. Junte-se ao nosso grupo no VRChat.",
