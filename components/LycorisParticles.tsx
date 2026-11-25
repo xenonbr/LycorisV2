@@ -43,8 +43,11 @@ export default function LycorisParticles() {
 
     window.addEventListener('resize', handleResize);
 
-    // Conjunto de partículas temáticas de Lycoris Radiata
-    const totalCount = Math.min(38, Math.floor(window.innerWidth / 35));
+    // Conjunto de partículas temáticas de Lycoris Radiata (otimizado para celular)
+    const isMobile = window.innerWidth < 768;
+    const totalCount = isMobile
+      ? Math.min(16, Math.floor(window.innerWidth / 28))
+      : Math.min(38, Math.floor(window.innerWidth / 35));
     const particles: LycorisParticle[] = [];
 
     for (let i = 0; i < totalCount; i++) {

@@ -59,7 +59,8 @@
   will-change: transform;
 }
 
-.supporters-marquee-wrapper:hover .supporters-marquee-track {
+.supporters-marquee-wrapper:hover .supporters-marquee-track,
+.supporters-marquee-wrapper:active .supporters-marquee-track {
   animation-play-state: paused;
 }
 

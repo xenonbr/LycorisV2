@@ -28,8 +28,8 @@ export default function SupportersSection() {
   const durationSeconds = Math.max(28, halfList.length * 9);
 
   return (
-    <section id="apoiadores" className="relative py-28 max-w-7xl mx-auto z-10 overflow-hidden">
-      <div className="text-center space-y-4 mb-16 px-4 sm:px-6 lg:px-8">
+    <section id="apoiadores" className="relative py-16 sm:py-28 max-w-7xl mx-auto z-10 overflow-hidden">
+      <div className="text-center space-y-4 mb-10 sm:mb-16 px-4 sm:px-6 lg:px-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950/70 border border-gothic-gold/30 text-gothic-gold text-xs font-semibold uppercase tracking-widest">
           <Award className="w-3.5 h-3.5" />
           Gratidão e Parcerias
@@ -50,17 +50,17 @@ export default function SupportersSection() {
       {/* Carrossel Contínuo */}
       <div className="supporters-marquee-wrapper relative w-full overflow-hidden py-4">
         {/* Fade suave nas bordas laterais */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-32 bg-gradient-to-r from-gothic-bg to-transparent z-20" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-32 bg-gradient-to-l from-gothic-bg to-transparent z-20" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-10 sm:w-32 bg-gradient-to-r from-gothic-bg to-transparent z-20" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-10 sm:w-32 bg-gradient-to-l from-gothic-bg to-transparent z-20" />
 
         <div
-          className="supporters-marquee-track gap-6 px-3"
+          className="supporters-marquee-track gap-4 sm:gap-6 px-3"
           style={{ ['--marquee-duration' as any]: `${durationSeconds}s` }}
         >
           {trackItems.map((supporter, idx) => (
             <div
               key={`${supporter.id || supporter.name}-${idx}`}
-              className="group relative w-[310px] sm:w-[370px] shrink-0 rounded-2xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 p-7 flex flex-col justify-between transition-all duration-300 hover:shadow-gold-glow hover:-translate-y-1"
+              className="group relative w-[270px] sm:w-[370px] shrink-0 rounded-2xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 p-5 sm:p-7 flex flex-col justify-between transition-all duration-300 hover:shadow-gold-glow hover:-translate-y-1"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-gothic-gold/5 rounded-full blur-3xl group-hover:bg-gothic-gold/15 transition-all" />
 

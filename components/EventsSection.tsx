@@ -78,8 +78,8 @@ export default function EventsSection() {
   };
 
   return (
-    <section id="eventos" className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto z-10">
-      <div className="text-center space-y-4 mb-16">
+    <section id="eventos" className="relative py-16 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto z-10">
+      <div className="text-center space-y-4 mb-10 sm:mb-16">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950/70 border border-lycoris-800/40 text-lycoris-400 text-xs font-semibold uppercase tracking-widest">
           <Calendar className="w-3.5 h-3.5 text-lycoris-500" />
           Calendário de Instâncias
@@ -246,7 +246,7 @@ export default function EventsSection() {
                     value={regForm.name}
                     onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
                     placeholder="Como podemos te chamar?"
-                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-lycoris-500"
+                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500"
                   />
                 </div>
                 <div>
@@ -257,7 +257,7 @@ export default function EventsSection() {
                     value={regForm.username}
                     onChange={(e) => setRegForm({ ...regForm, username: e.target.value })}
                     placeholder="Seu nick exato no VRChat"
-                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-lycoris-500"
+                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500"
                   />
                 </div>
                 <div>
@@ -268,7 +268,7 @@ export default function EventsSection() {
                     value={regForm.notes}
                     onChange={(e) => setRegForm({ ...regForm, notes: e.target.value })}
                     placeholder="Plataforma (PC/Quest/VR), acessibilidade, etc."
-                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-sm focus:outline-none focus:border-lycoris-500 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500 resize-none"
                   />
                 </div>
 

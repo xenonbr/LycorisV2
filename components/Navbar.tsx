@@ -24,10 +24,10 @@ export default function Navbar() {
           : 'bg-transparent'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
         {/* Logo / Monograma */}
-        <Link href="/" className="group flex items-center gap-3.5">
-          <div className="relative w-11 h-11 rounded-full bg-gradient-to-br from-lycoris-600 via-lycoris-900 to-black p-0.5 shadow-lycoris-glow group-hover:scale-105 transition-transform duration-300">
+        <Link href="/" className="group flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+          <div className="relative w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-full bg-gradient-to-br from-lycoris-600 via-lycoris-900 to-black p-0.5 shadow-lycoris-glow group-hover:scale-105 transition-transform duration-300">
             <div className="w-full h-full rounded-full bg-gothic-bg flex items-center justify-center border border-lycoris-500/30 overflow-hidden p-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -37,11 +37,11 @@ export default function Navbar() {
               />
             </div>
           </div>
-          <div>
-            <span className="font-serif text-xl sm:text-2xl font-bold tracking-wider text-zinc-100 group-hover:text-white transition-colors">
+          <div className="truncate">
+            <span className="font-serif text-lg sm:text-2xl font-bold tracking-wider text-zinc-100 group-hover:text-white transition-colors">
               LYCORIS <span className="text-lycoris-500">GARDEN</span>
             </span>
-            <span className="block text-[10px] tracking-widest text-zinc-400 uppercase font-sans -mt-0.5">
+            <span className="block text-[9px] sm:text-[10px] tracking-widest text-zinc-400 uppercase font-sans -mt-0.5">
               VRChat Community
             </span>
           </div>
@@ -109,43 +109,47 @@ export default function Navbar() {
 
       {/* Drawer Mobile */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-gothic-bg/95 border-b border-lycoris-900/40 backdrop-blur-xl px-6 py-6 space-y-4">
+        <div className="md:hidden bg-gothic-bg/98 border-b border-lycoris-900/40 backdrop-blur-xl px-5 py-5 space-y-1 shadow-2xl">
           <Link
             href="#sobre"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-zinc-300 hover:text-lycoris-400 font-medium py-1"
+            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
-            Sobre
+            <Sparkles className="w-4 h-4 text-lycoris-500" />
+            <span>Sobre</span>
           </Link>
           <Link
             href="#eventos"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-zinc-300 hover:text-lycoris-400 font-medium py-1"
+            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
-            Eventos
+            <Calendar className="w-4 h-4 text-lycoris-500" />
+            <span>Eventos</span>
           </Link>
           <Link
             href="#galeria"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-zinc-300 hover:text-lycoris-400 font-medium py-1"
+            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
-            Galeria Comunitária
+            <ImageIcon className="w-4 h-4 text-lycoris-500" />
+            <span>Galeria Comunitária</span>
           </Link>
           <Link
             href="#apoiadores"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-zinc-300 hover:text-lycoris-400 font-medium py-1"
+            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
-            Apoiadores
+            <HeartHandshake className="w-4 h-4 text-gothic-gold" />
+            <span>Apoiadores</span>
           </Link>
           <div className="pt-3">
             <a
               href="https://vrc.group/LYCORI.7672"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-lycoris-600 hover:bg-lycoris-700 text-white font-semibold shadow-lycoris-glow text-sm"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-lycoris-600 active:bg-lycoris-700 text-white font-semibold shadow-lycoris-glow text-sm"
             >
-              <span>Filiação VRChat</span>
+              <span>Entrar no Grupo VRChat</span>
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>

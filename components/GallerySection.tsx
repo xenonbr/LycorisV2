@@ -171,8 +171,8 @@ export default function GallerySection() {
   };
 
   return (
-    <section id="galeria" className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto z-10">
-      <div className="text-center space-y-4 mb-16">
+    <section id="galeria" className="relative py-16 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto z-10">
+      <div className="text-center space-y-4 mb-10 sm:mb-16">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950/70 border border-lycoris-800/40 text-lycoris-400 text-xs font-semibold uppercase tracking-widest">
           <Camera className="w-3.5 h-3.5 text-lycoris-500" />
           Registros e Memórias
@@ -219,7 +219,7 @@ export default function GallerySection() {
                 />
               </div>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-5 flex flex-col justify-end">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 p-4 sm:p-5 flex flex-col justify-end">
                 <span className="text-xs text-lycoris-400 font-medium">
                   {img.vrchat_world || 'Lycoris Garden Sanctuary'}
                 </span>
@@ -255,26 +255,26 @@ export default function GallerySection() {
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-3 sm:p-6 overscroll-contain"
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md p-0 sm:p-6 overscroll-contain"
             onClick={closeLightbox}
           >
             <div
-              className="relative max-w-6xl w-full max-h-[92vh] lg:h-[86vh] bg-gothic-card rounded-2xl border border-lycoris-900/50 shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row overscroll-contain"
+              className="relative max-w-6xl w-full max-h-[94dvh] sm:max-h-[92vh] lg:h-[86vh] bg-gothic-card rounded-t-2xl sm:rounded-2xl border-t sm:border border-lycoris-900/50 shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row overscroll-contain"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={closeLightbox}
-                className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/75 hover:bg-lycoris-700 text-zinc-200 hover:text-white transition-colors border border-zinc-700"
+                className="fixed sm:absolute top-3 right-3 z-30 p-2.5 rounded-full bg-black/80 hover:bg-lycoris-700 text-zinc-200 hover:text-white transition-colors border border-zinc-700"
                 aria-label="Fechar modal"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="lg:w-7/12 bg-black flex items-center justify-center p-4 sm:p-6 relative min-h-[260px] lg:h-full overflow-auto">
+              <div className="lg:w-7/12 bg-black flex items-center justify-center p-3 sm:p-6 relative min-h-[220px] sm:min-h-[260px] lg:h-full shrink-0">
                 <img
                   src={activeImage.url}
                   alt={activeImage.title || 'Registro em tela cheia'}
-                  className="max-h-[75vh] lg:max-h-full w-auto max-w-full object-contain rounded-lg shadow-lg"
+                  className="max-h-[48dvh] sm:max-h-[75vh] lg:max-h-full w-auto max-w-full object-contain rounded-lg shadow-lg"
                 />
               </div>
 
@@ -350,7 +350,7 @@ export default function GallerySection() {
                       placeholder="Seu nome ou Nick no VRChat..."
                       value={authorName}
                       onChange={(e) => setAuthorName(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none"
+                      className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none"
                     />
                     <div className="relative">
                       <textarea
@@ -359,7 +359,7 @@ export default function GallerySection() {
                         placeholder="Deixe uma mensagem sobre esta memória..."
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none resize-none pr-10"
+                        className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none resize-none pr-10"
                       />
                       <button
                         type="submit"

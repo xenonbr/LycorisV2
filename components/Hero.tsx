@@ -26,7 +26,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <section className="relative min-h-[100svh] flex items-center justify-center pt-20 sm:pt-24 pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Imagem de Fundo com Vinheta e Gradiente Gótico */}
       <div className="absolute inset-0 z-0">
         <Image
@@ -51,50 +51,50 @@ export default function Hero() {
         </div>
 
         {/* Título Principal */}
-        <div className="space-y-4">
-          <h1 className="font-serif text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-white drop-shadow-2xl">
+        <div className="space-y-3 sm:space-y-4">
+          <h1 className="font-serif text-4xl sm:text-7xl lg:text-8xl font-black tracking-tight text-white drop-shadow-2xl leading-none">
             LYCORIS <span className="text-transparent bg-clip-text bg-gradient-to-r from-lycoris-400 via-lycoris-500 to-lycoris-700">GARDEN</span>
           </h1>
-          <p className="font-serif italic text-lg sm:text-2xl text-gothic-gold font-light tracking-wide max-w-2xl mx-auto drop-shadow">
+          <p className="font-serif italic text-base sm:text-2xl text-gothic-gold font-light tracking-wide max-w-2xl mx-auto drop-shadow px-2">
             &ldquo;Lycoris‚ um jardim onde a vida e a morte se encontram.&rdquo;
           </p>
         </div>
 
         {/* Descrição da Comunidade */}
-        <div className="font-sans text-base sm:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed font-normal space-y-2">
+        <div className="font-sans text-sm sm:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed font-normal space-y-1.5 sm:space-y-2">
           <p>• Instâncias com DJs</p>
           <p>• Sorteios</p>
           <p>• Eventos e atividades especiais</p>
           <p>• Uma comunidade para conhecer pessoas e criar memórias</p>
 
-          <p className="font-serif italic text-lycoris-300 pt-3 text-lg">
+          <p className="font-serif italic text-lycoris-300 pt-2 sm:pt-3 text-base sm:text-lg">
             &ldquo;Entre no jardim, e se torne um Lírio.&rdquo;
           </p>
         </div>
 
         {/* Botões de Ação (CTAs) */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-2 sm:pt-4">
           <a
             href="https://vrc.group/LYCORI.7672"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white font-semibold text-base shadow-lycoris-glow hover:shadow-lycoris-glow-lg transition-all duration-300 hover:scale-[1.02] border border-lycoris-400/40"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 active:scale-[0.98] text-white font-semibold text-sm sm:text-base shadow-lycoris-glow hover:shadow-lycoris-glow-lg transition-all duration-300 sm:hover:scale-[1.02] border border-lycoris-400/40"
           >
             <span>Filiação ao Grupo no VRChat</span>
-            <ExternalLink className="w-5 h-5 text-lycoris-200" />
+            <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5 text-lycoris-200" />
           </a>
 
           <a
             href="#eventos"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 hover:text-white font-medium text-base border border-zinc-700/60 hover:border-lycoris-700/60 backdrop-blur-sm transition-all duration-300"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 active:scale-[0.98] text-zinc-200 hover:text-white font-medium text-sm sm:text-base border border-zinc-700/60 hover:border-lycoris-700/60 backdrop-blur-sm transition-all duration-300"
           >
-            <Calendar className="w-5 h-5 text-lycoris-400" />
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-lycoris-400" />
             <span>Ver Próximos Eventos</span>
           </a>
         </div>
 
         {/* Destaques / Estatísticas Rápidas (Editáveis via /admin) */}
-        <div className="pt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+        <div className="pt-6 sm:pt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
           {stats.map((item, idx) => {
             const colorCls =
               COLOR_CLASS[item.color || ''] ||
@@ -102,12 +102,12 @@ export default function Hero() {
             return (
               <div
                 key={item.id || idx}
-                className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm flex flex-col justify-center"
+                className="p-3.5 sm:p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 backdrop-blur-sm flex flex-col justify-center"
               >
-                <div className={`font-serif text-2xl sm:text-3xl font-bold ${colorCls}`}>
+                <div className={`font-serif text-xl sm:text-3xl font-bold leading-tight ${colorCls}`}>
                   {item.value}
                 </div>
-                <div className="text-xs text-zinc-400 tracking-wider uppercase mt-1">
+                <div className="text-[11px] sm:text-xs text-zinc-400 tracking-wider uppercase mt-1">
                   {item.label}
                 </div>
               </div>

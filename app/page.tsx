@@ -21,15 +21,15 @@ export default function HomePage() {
       <Hero />
 
       {/* Seção Sobre / Filosofia da Marca */}
-      <section id="sobre" className="relative py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto z-10">
-        <div className="rounded-3xl bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 border border-lycoris-900/40 p-8 sm:p-14 shadow-2xl backdrop-blur-md">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-7 space-y-6">
+      <section id="sobre" className="relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto z-10">
+        <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 border border-lycoris-900/40 p-6 sm:p-14 shadow-2xl backdrop-blur-md">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10 items-center">
+            <div className="lg:col-span-7 space-y-5 sm:space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950 border border-lycoris-800/60 text-lycoris-300 text-xs font-semibold uppercase tracking-wider">
                 <Sparkles className="w-3.5 h-3.5 text-lycoris-400" />
                 Manifesto da Comunidade
               </div>
-              <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white tracking-tight leading-tight">
+              <h2 className="font-serif text-2xl sm:text-4xl font-bold text-white tracking-tight leading-tight">
                 Um Jardim Carmesim Onde a <span className="text-lycoris-500">Arte e a Conexão</span> Florescem
               </h2>
               <p className="font-sans text-zinc-300 leading-relaxed text-sm sm:text-base">
@@ -66,7 +66,7 @@ export default function HomePage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-6">
                   <span className="text-[11px] uppercase tracking-widest text-lycoris-400 font-bold">
-                    Lycoris Gareden
+                    Lycoris Garden
                   </span>
                   <span className="font-serif text-lg font-bold text-white">
                     Comunidade Oficial
