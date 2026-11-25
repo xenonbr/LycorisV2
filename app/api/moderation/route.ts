@@ -9,7 +9,7 @@ const BLOCKED_WORDS_PATH = 'settings/blocked-words.json';
 
 let localCustomWords: string[] = [];
 
-export async function getCustomBlockedWords(): Promise<string[]> {
+async function getCustomBlockedWords(): Promise<string[]> {
   if (isSupabaseConfigured && supabaseAdmin) {
     try {
       const { data, error } = await supabaseAdmin.storage

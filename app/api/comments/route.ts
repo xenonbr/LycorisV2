@@ -3,9 +3,28 @@ import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { isAdminRequest, unauthorized } from '@/lib/auth';
 import { INITIAL_GALLERY } from '@/lib/mockData';
 import { validateCommentInput } from '@/lib/moderation';
-import { getCustomBlockedWords } from '@/app/api/moderation/route';
 
 export const dynamic = 'force-dynamic';
+
+const BUCKET_NAME = 'lycoris-media';
+const BLOCKED_WORDS_PATH = 'settings/blocked-words.json';
+
+async function getCustomBlockedWords(): Promise<string[]> {
+  if (isSupabaseConfigured && supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin.storage
+        .from(BUCKET_NAME)
+        .download(BLOCKED_WORDS_PATH);
+      if (!error && data) {
+        const parsed = JSON.parse(await data.text());
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignora se arquivo ainda não existir
+    }
+  }
+  return [];
+}
 
 let localComments = INITIAL_GALLERY.flatMap((img) => img.comments || []);
 
