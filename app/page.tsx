@@ -17,7 +17,11 @@ export default function HomePage() {
       <Hero />
 
       {/* Seção Sobre / Filosofia da Marca */}
-      <section id="sobre" className="relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto z-10">
+      <section
+        id="sobre"
+        style={{ '--reveal-delay': '1220ms' } as React.CSSProperties}
+        className="lycoris-reveal-step relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto z-10"
+      >
         <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 border border-lycoris-900/40 p-6 sm:p-14 shadow-2xl backdrop-blur-md">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10 items-center">
             <div className="lg:col-span-7 space-y-5 sm:space-y-6">

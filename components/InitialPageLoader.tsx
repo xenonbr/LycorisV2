@@ -34,7 +34,7 @@ export default function InitialPageLoader({
     }
 
     const darkHoldMs = alreadyVisited ? 300 : 1050;
-    const revealDurationMs = alreadyVisited ? 1000 : 1850;
+    const revealDurationMs = alreadyVisited ? 1300 : 2350;
 
     const revealTimer = window.setTimeout(() => {
       setPhase('revealing');
@@ -73,17 +73,18 @@ export default function InitialPageLoader({
         />
       )}
 
-      {/* Conteúdo da Página com Fade-In Leve e Sutil */}
+      {/* Conteúdo da Página com Fade-In Gradativo de Cima para Baixo */}
       <div
-        className={
+        data-intro-phase={phase}
+        className={`lycoris-intro-stage ${
           phase === 'done'
             ? ''
             : `transition-opacity ease-out ${
                 phase === 'dark'
                   ? 'opacity-0 duration-300'
-                  : 'opacity-100 duration-[1850ms]'
+                  : 'opacity-100 duration-[1400ms]'
               }`
-        }
+        }`}
       >
         {children}
       </div>

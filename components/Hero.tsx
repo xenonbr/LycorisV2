@@ -40,18 +40,26 @@ export default function Hero() {
         <div className="absolute inset-0 bg-radial-vignette opacity-80" />
       </div>
 
-      {/* Conteúdo Central */}
+      {/* Conteúdo Central (Cascata sutil de cima para baixo) */}
       <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
         {/* Badge Místico */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-lycoris-950/80 border border-lycoris-700/50 backdrop-blur-md shadow-lycoris-glow animate-float">
-          <Flame className="w-4 h-4 text-lycoris-500 animate-pulse" />
-          <span className="text-xs uppercase tracking-widest text-lycoris-300 font-semibold">
-            VRChat Community • Red Spider Lily
-          </span>
+        <div
+          style={{ '--reveal-delay': '220ms' } as React.CSSProperties}
+          className="lycoris-reveal-step"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-lycoris-950/80 border border-lycoris-700/50 backdrop-blur-md shadow-lycoris-glow animate-float">
+            <Flame className="w-4 h-4 text-lycoris-500 animate-pulse" />
+            <span className="text-xs uppercase tracking-widest text-lycoris-300 font-semibold">
+              VRChat Community • Red Spider Lily
+            </span>
+          </div>
         </div>
 
         {/* Título Principal */}
-        <div className="space-y-3 sm:space-y-4">
+        <div
+          style={{ '--reveal-delay': '400ms' } as React.CSSProperties}
+          className="lycoris-reveal-step space-y-3 sm:space-y-4"
+        >
           <h1 className="font-serif text-4xl sm:text-7xl lg:text-8xl font-black tracking-tight text-white drop-shadow-2xl leading-none">
             LYCORIS <span className="text-transparent bg-clip-text bg-gradient-to-r from-lycoris-400 via-lycoris-500 to-lycoris-700">GARDEN</span>
           </h1>
@@ -61,7 +69,10 @@ export default function Hero() {
         </div>
 
         {/* Descrição da Comunidade */}
-        <div className="font-sans text-sm sm:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed font-normal space-y-1.5 sm:space-y-2">
+        <div
+          style={{ '--reveal-delay': '580ms' } as React.CSSProperties}
+          className="lycoris-reveal-step font-sans text-sm sm:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed font-normal space-y-1.5 sm:space-y-2"
+        >
           <p>• Instâncias com DJs</p>
           <p>• Sorteios</p>
           <p>• Eventos e atividades especiais</p>
@@ -73,7 +84,10 @@ export default function Hero() {
         </div>
 
         {/* Botões de Ação (CTAs) */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-2 sm:pt-4">
+        <div
+          style={{ '--reveal-delay': '760ms' } as React.CSSProperties}
+          className="lycoris-reveal-step flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-2 sm:pt-4"
+        >
           <a
             href="https://vrc.group/LYCORI.7672"
             target="_blank"
@@ -94,7 +108,10 @@ export default function Hero() {
         </div>
 
         {/* Destaques / Estatísticas Rápidas (Editáveis via /admin) */}
-        <div className="pt-6 sm:pt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
+        <div
+          style={{ '--reveal-delay': '940ms' } as React.CSSProperties}
+          className="lycoris-reveal-step pt-6 sm:pt-12 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto"
+        >
           {stats.map((item, idx) => {
             const colorCls =
               COLOR_CLASS[item.color || ''] ||
@@ -118,7 +135,10 @@ export default function Hero() {
         </div>
 
         {/* Indicador de Rolagem */}
-        <div className="pt-8 flex justify-center">
+        <div
+          style={{ '--reveal-delay': '1100ms' } as React.CSSProperties}
+          className="lycoris-reveal-step pt-8 flex justify-center"
+        >
           <a
             href="#sobre"
             className="text-zinc-500 hover:text-lycoris-400 transition-colors p-2 rounded-full hover:bg-zinc-900/50 animate-bounce"

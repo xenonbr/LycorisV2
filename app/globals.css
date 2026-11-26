@@ -130,3 +130,26 @@ body {
   scrollbar-width: none;
 }
 
+/* Cascata de entrada suave de cima para baixo (InitialPageLoader) */
+.lycoris-intro-stage .lycoris-reveal-step {
+  opacity: 0;
+  transform: translate3d(0, -14px, 0);
+  transition:
+    opacity 1150ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1150ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.lycoris-intro-stage[data-intro-phase="revealing"] .lycoris-reveal-step {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.lycoris-intro-stage[data-intro-phase="done"] .lycoris-reveal-step {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+

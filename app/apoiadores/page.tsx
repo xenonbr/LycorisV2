@@ -55,7 +55,10 @@ export default function ApoiadoresPage() {
 
       {/* Cabeçalho da Página de Apoiadores & Parceiros */}
       <section className="relative pt-28 sm:pt-36 pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10">
-        <div className="mb-6">
+        <div
+          style={{ '--reveal-delay': '180ms' } as React.CSSProperties}
+          className="lycoris-reveal-step mb-6"
+        >
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-lycoris-400 transition-colors"
@@ -65,7 +68,10 @@ export default function ApoiadoresPage() {
           </Link>
         </div>
 
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
+        <div
+          style={{ '--reveal-delay': '340ms' } as React.CSSProperties}
+          className="lycoris-reveal-step text-center space-y-4 max-w-3xl mx-auto"
+        >
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-lycoris-950/70 border border-gothic-gold/30 text-gothic-gold text-xs font-semibold uppercase tracking-widest">
             <Award className="w-3.5 h-3.5" />
             Gratidão, Criadores e Parcerias
@@ -85,7 +91,10 @@ export default function ApoiadoresPage() {
       </section>
 
       {/* Filtros, Busca e Grade Completa de Apoiadores */}
-      <section className="relative pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10 flex-1 space-y-8">
+      <section
+        style={{ '--reveal-delay': '540ms' } as React.CSSProperties}
+        className="lycoris-reveal-step relative pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10 flex-1 space-y-8"
+      >
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           {/* Filtro por Título/Papel */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">

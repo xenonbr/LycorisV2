@@ -61,7 +61,10 @@ export default function SawVRPage() {
       <Navbar />
 
       {/* Banner / Cabeçalho do Parceiro SawVR */}
-      <section className="relative pt-28 sm:pt-36 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10">
+      <section
+        style={{ '--reveal-delay': '240ms' } as React.CSSProperties}
+        className="lycoris-reveal-step relative pt-28 sm:pt-36 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10"
+      >
         <div className="mb-6">
           <Link
             href="/"
