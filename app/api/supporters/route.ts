@@ -55,6 +55,25 @@ async function saveSupporterBanners(map: Record<string, string>): Promise<void> 
   }
 }
 
+function resolveSortOrder(body: any): number {
+  if (body.crystal_style === 'crimson' || body.is_owner) return -2;
+  if (body.crystal_style === 'gold' || body.is_gold_crystal) return -1;
+  return Number(body.sort_order) >= 0 ? Number(body.sort_order) : 0;
+}
+
+function enrichSupporter(s: any, banners: Record<string, string>) {
+  const order = Number(s.sort_order ?? 0);
+  const style: 'none' | 'crimson' | 'gold' =
+    order <= -2 ? 'crimson' : order === -1 ? 'gold' : 'none';
+  return {
+    ...s,
+    banner_url: banners[s.id] || null,
+    is_owner: style === 'crimson',
+    is_gold_crystal: style === 'gold',
+    crystal_style: style,
+  };
+}
+
 export async function GET() {
   const banners = await getSupporterBanners();
   const client = supabaseAdmin || supabase;
@@ -65,20 +84,10 @@ export async function GET() {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (!error && data) {
-      return NextResponse.json(
-        data.map((s) => ({
-          ...s,
-          banner_url: banners[s.id] || null,
-        }))
-      );
+      return NextResponse.json(data.map((s) => enrichSupporter(s, banners)));
     }
   }
-  return NextResponse.json(
-    localSupporters.map((s) => ({
-      ...s,
-      banner_url: (s.id && banners[s.id]) || null,
-    }))
-  );
+  return NextResponse.json(localSupporters.map((s) => enrichSupporter(s, banners)));
 }
 
 export async function POST(request: Request) {
@@ -94,7 +103,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const isOwner = Boolean(body.is_owner);
     const bannerUrl =
       body.banner_url && isValidUrl(String(body.banner_url))
         ? String(body.banner_url).trim()
@@ -107,7 +115,7 @@ export async function POST(request: Request) {
       tagline: String(body.tagline || '').trim(),
       role: String(body.role || 'Apoiador').trim(),
       avatar: body.avatar && isValidUrl(String(body.avatar)) ? String(body.avatar).trim() : null,
-      sort_order: isOwner ? -1 : Number(body.sort_order) || 0,
+      sort_order: resolveSortOrder(body),
     };
 
     if (isSupabaseConfigured && supabaseAdmin) {
@@ -148,7 +156,6 @@ export async function PUT(request: Request) {
     if (!String(body.name || '').trim() || !isValidUrl(url)) {
       return NextResponse.json({ error: 'Nome e uma URL válida são obrigatórios.' }, { status: 400 });
     }
-    const isOwner = Boolean(body.is_owner);
     const bannerUrl =
       body.banner_url && isValidUrl(String(body.banner_url))
         ? String(body.banner_url).trim()
@@ -160,7 +167,7 @@ export async function PUT(request: Request) {
       tagline: String(body.tagline || '').trim(),
       role: String(body.role || 'Apoiador').trim(),
       avatar: body.avatar && isValidUrl(String(body.avatar)) ? String(body.avatar).trim() : null,
-      sort_order: isOwner ? -1 : 0,
+      sort_order: resolveSortOrder(body),
     };
 
     const banners = await getSupporterBanners();

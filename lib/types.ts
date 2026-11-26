@@ -43,6 +43,8 @@ export interface Supporter {
   banner_url?: string | null;
   sort_order?: number;
   is_owner?: boolean;
+  is_gold_crystal?: boolean;
+  crystal_style?: 'none' | 'crimson' | 'gold';
 }
 
 export interface EventRegistration {

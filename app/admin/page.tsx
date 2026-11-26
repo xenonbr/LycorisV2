@@ -60,6 +60,7 @@ const EMPTY_SUPPORTER = {
   avatar: '',
   banner_url: '',
   is_owner: false,
+  is_gold_crystal: false,
 };
 const EMPTY_EVENT = {
   title: '',
@@ -620,6 +621,11 @@ export default function AdminPage() {
   const handleEditSupporter = (s: Supporter) => {
     setEditingSupporterId(s.id || null);
     setSupporterBannerStats(null);
+    const order = s.sort_order ?? 0;
+    const isCrimson = Boolean(s.crystal_style === 'crimson' || s.is_owner || order <= -2);
+    const isGold = Boolean(
+      !isCrimson && (s.crystal_style === 'gold' || s.is_gold_crystal || order === -1)
+    );
     setSupporterForm({
       name: s.name,
       url: s.url,
@@ -627,7 +633,8 @@ export default function AdminPage() {
       role: s.role || 'Apoiador',
       avatar: s.avatar || '',
       banner_url: s.banner_url || '',
-      is_owner: Boolean(s.is_owner || (s.sort_order ?? 0) < 0),
+      is_owner: isCrimson,
+      is_gold_crystal: isGold,
     });
   };
 
@@ -1831,16 +1838,21 @@ export default function AdminPage() {
                       <span className="font-semibold text-white text-sm">{s.name}</span>
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded border ${
-                          (s.sort_order ?? 0) < 0
+                          (s.sort_order ?? 0) <= -2
                             ? 'bg-lycoris-950/80 border-lycoris-500/50 text-lycoris-300 font-semibold'
                             : 'border-gothic-gold/30 text-gothic-gold'
                         }`}
                       >
                         {s.role}
                       </span>
-                      {(s.sort_order ?? 0) < 0 && (
+                      {(s.sort_order ?? 0) <= -2 && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-lycoris-600/20 border border-lycoris-500/40 text-lycoris-300 font-semibold">
                           Cristal Carmesim
+                        </span>
+                      )}
+                      {(s.sort_order ?? 0) === -1 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gothic-gold/15 border border-gothic-gold/50 text-gothic-gold font-semibold">
+                          Cristal Dourado
                         </span>
                       )}
                       {s.banner_url && (

@@ -136,8 +136,13 @@ export default function ApoiadoresPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((supporter, idx) => {
+              const order = supporter.sort_order ?? 0;
               const isCrimsonOwner = Boolean(
-                supporter.is_owner || (supporter.sort_order ?? 0) < 0
+                supporter.crystal_style === 'crimson' || supporter.is_owner || order <= -2
+              );
+              const isGoldCrystal = Boolean(
+                !isCrimsonOwner &&
+                  (supporter.crystal_style === 'gold' || supporter.is_gold_crystal || order === -1)
               );
               const isSawPartner = supporter.name.toLowerCase().includes('saw');
               const hasCustomBanner = Boolean(supporter.banner_url && supporter.banner_url.trim());
@@ -148,6 +153,8 @@ export default function ApoiadoresPage() {
                   className={`group relative rounded-2xl p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 overflow-hidden ${
                     isCrimsonOwner
                       ? 'crimson-crystal-card'
+                      : isGoldCrystal
+                      ? 'gold-crystal-card'
                       : 'bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 hover:shadow-gold-glow'
                   }`}
                 >
@@ -165,6 +172,8 @@ export default function ApoiadoresPage() {
                         className={`absolute inset-0 ${
                           isCrimsonOwner
                             ? 'bg-gradient-to-b from-lycoris-950/60 via-zinc-950/65 to-zinc-950/90'
+                            : isGoldCrystal
+                            ? 'bg-gradient-to-b from-amber-950/55 via-zinc-950/65 to-zinc-950/90'
                             : 'bg-gradient-to-b from-zinc-950/55 via-zinc-950/65 to-zinc-950/90'
                         }`}
                       />
@@ -177,6 +186,12 @@ export default function ApoiadoresPage() {
                       <div className="pointer-events-none absolute -bottom-12 -left-12 w-36 h-36 bg-lycoris-700/20 rounded-full blur-3xl group-hover:bg-lycoris-600/35 transition-all duration-500" />
                       <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-lycoris-300/70 to-transparent" />
                     </>
+                  ) : isGoldCrystal ? (
+                    <>
+                      <div className="pointer-events-none absolute -top-12 -right-12 w-40 h-40 bg-gothic-gold/25 rounded-full blur-3xl group-hover:bg-gothic-gold/40 transition-all duration-500" />
+                      <div className="pointer-events-none absolute -bottom-12 -left-12 w-36 h-36 bg-amber-600/20 rounded-full blur-3xl group-hover:bg-amber-500/35 transition-all duration-500" />
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-amber-300/80 to-transparent" />
+                    </>
                   ) : (
                     <div className="pointer-events-none absolute top-0 right-0 w-32 h-32 bg-gothic-gold/5 rounded-full blur-3xl group-hover:bg-gothic-gold/15 transition-all" />
                   )}
@@ -187,16 +202,21 @@ export default function ApoiadoresPage() {
                         className={`px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 ${
                           isCrimsonOwner
                             ? 'bg-lycoris-950/80 border border-lycoris-400/50 text-lycoris-200 shadow-sm backdrop-blur-md'
+                            : isGoldCrystal
+                            ? 'bg-amber-950/80 border border-gothic-gold/60 text-amber-200 shadow-sm backdrop-blur-md'
                             : 'bg-zinc-900 border border-gothic-gold/30 text-gothic-gold'
                         }`}
                       >
                         {isCrimsonOwner && <Crown className="w-3.5 h-3.5 text-lycoris-400" />}
+                        {isGoldCrystal && <Sparkles className="w-3.5 h-3.5 text-gothic-gold" />}
                         {supporter.role}
                       </span>
                       <Sparkles
                         className={`w-4 h-4 ${
                           isCrimsonOwner
                             ? 'text-lycoris-400 animate-pulse'
+                            : isGoldCrystal
+                            ? 'text-gothic-gold animate-pulse'
                             : 'text-gothic-gold/70'
                         }`}
                       />
@@ -211,6 +231,8 @@ export default function ApoiadoresPage() {
                           className={`w-14 h-14 rounded-full object-cover shrink-0 ${
                             isCrimsonOwner
                               ? 'border-2 border-lycoris-400/70 shadow-lycoris-glow'
+                              : isGoldCrystal
+                              ? 'border-2 border-gothic-gold/80 shadow-gold-glow'
                               : 'border border-gothic-gold/40'
                           }`}
                         />
@@ -219,6 +241,8 @@ export default function ApoiadoresPage() {
                         className={`font-serif text-2xl sm:text-3xl font-bold transition-colors truncate ${
                           isCrimsonOwner
                             ? 'text-white group-hover:text-lycoris-300 text-glow'
+                            : isGoldCrystal
+                            ? 'text-white group-hover:text-gothic-gold gold-glow'
                             : 'text-white group-hover:text-gothic-gold'
                         }`}
                       >
@@ -235,7 +259,11 @@ export default function ApoiadoresPage() {
 
                   <div
                     className={`relative z-10 pt-5 mt-6 border-t flex items-center justify-between gap-3 flex-wrap ${
-                      isCrimsonOwner ? 'border-lycoris-500/25' : 'border-zinc-800'
+                      isCrimsonOwner
+                        ? 'border-lycoris-500/25'
+                        : isGoldCrystal
+                        ? 'border-gothic-gold/30'
+                        : 'border-zinc-800'
                     }`}
                   >
                     <a
