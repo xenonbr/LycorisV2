@@ -34,7 +34,7 @@ export default function Hero() {
           alt="Lycoris Garden Banner"
           fill
           priority
-          className="object-cover object-center opacity-30 filter brightness-75 contrast-125"
+          className="object-cover object-center opacity-30 filter brightness-75 contrast-125 blur-[0.8px] scale-[1.01]"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-gothic-bg/80 via-gothic-bg/70 to-gothic-bg" />
         <div className="absolute inset-0 bg-radial-vignette opacity-80" />

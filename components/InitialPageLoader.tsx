@@ -53,11 +53,13 @@ export default function InitialPageLoader({
   return (
     <>
       {/* Camada Global de Pétalas de Lycoris:
-          Fica acima da cortina preta durante a abertura (z-[85]) para que apenas as pétalas
-          sejam vistas sobre o fundo escuro, e depois retorna para o fundo da página (z-[1]). */}
+          Fica nítida e em destaque acima da cortina preta durante a abertura (z-[85]),
+          e após a animação finalizar retorna ao fundo da página (z-[1]) com um desfoque sutil de ~5% (blur-[0.7px]). */}
       <LycorisParticles
-        className={`pointer-events-none fixed inset-0 h-full w-full transition-opacity duration-1000 ${
-          phase === 'done' ? 'z-[1] opacity-80' : 'z-[85] opacity-95'
+        className={`pointer-events-none fixed inset-0 h-full w-full transition-all duration-1000 ${
+          phase === 'done'
+            ? 'z-[1] opacity-75 blur-[0.7px]'
+            : 'z-[85] opacity-95 blur-none'
         }`}
       />
 
