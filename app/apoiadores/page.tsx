@@ -140,6 +140,7 @@ export default function ApoiadoresPage() {
                 supporter.is_owner || (supporter.sort_order ?? 0) < 0
               );
               const isSawPartner = supporter.name.toLowerCase().includes('saw');
+              const hasCustomBanner = Boolean(supporter.banner_url && supporter.banner_url.trim());
 
               return (
                 <div
@@ -150,6 +151,26 @@ export default function ApoiadoresPage() {
                       : 'bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 hover:shadow-gold-glow'
                   }`}
                 >
+                  {/* Plano de Fundo Desfocado Exclusivo da Página de Apoiadores */}
+                  {hasCustomBanner && (
+                    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={supporter.banner_url!}
+                        alt=""
+                        aria-hidden="true"
+                        className="w-full h-full object-cover scale-105 blur-[3.5px] opacity-50 group-hover:opacity-65 group-hover:scale-110 transition-all duration-500"
+                      />
+                      <div
+                        className={`absolute inset-0 ${
+                          isCrimsonOwner
+                            ? 'bg-gradient-to-b from-lycoris-950/60 via-zinc-950/65 to-zinc-950/90'
+                            : 'bg-gradient-to-b from-zinc-950/55 via-zinc-950/65 to-zinc-950/90'
+                        }`}
+                      />
+                    </div>
+                  )}
+
                   {isCrimsonOwner ? (
                     <>
                       <div className="pointer-events-none absolute -top-12 -right-12 w-40 h-40 bg-lycoris-500/20 rounded-full blur-3xl group-hover:bg-lycoris-500/35 transition-all duration-500" />

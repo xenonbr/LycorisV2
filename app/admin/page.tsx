@@ -58,6 +58,7 @@ const EMPTY_SUPPORTER = {
   tagline: '',
   role: 'Apoiador',
   avatar: '',
+  banner_url: '',
   is_owner: false,
 };
 const EMPTY_EVENT = {
@@ -185,6 +186,8 @@ export default function AdminPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [compressionStats, setCompressionStats] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingSupporterBanner, setUploadingSupporterBanner] = useState(false);
+  const [supporterBannerStats, setSupporterBannerStats] = useState<string | null>(null);
 
   const handleEventImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -272,6 +275,37 @@ export default function AdminPage() {
       showToast(err.message || 'Erro ao enviar logo');
     } finally {
       setUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSupporterBannerFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingSupporterBanner(true);
+    setSupporterBannerStats('Comprimindo imagem de fundo...');
+    try {
+      const originalSize = file.size;
+      const compressed = await compressImageFile(file, 1280, 0.8);
+      const savedPct = Math.max(0, Math.round((1 - compressed.size / originalSize) * 100));
+
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'supporters');
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+
+      setSupporterForm((prev) => ({ ...prev, banner_url: data.url }));
+      setSupporterBannerStats(
+        `Comprimido: ${formatBytes(originalSize)} → ${formatBytes(compressed.size)} (WebP, -${savedPct}%)`
+      );
+      showToast('Plano de fundo do apoiador comprimido e enviado!');
+    } catch (err: any) {
+      setSupporterBannerStats(null);
+      showToast(err.message || 'Erro ao enviar plano de fundo');
+    } finally {
+      setUploadingSupporterBanner(false);
       e.target.value = '';
     }
   };
@@ -575,6 +609,7 @@ export default function AdminPage() {
       }
       setSupporterForm(EMPTY_SUPPORTER);
       setEditingSupporterId(null);
+      setSupporterBannerStats(null);
       await fetchDashboardData();
       showToast(editing ? 'Apoiador atualizado!' : 'Apoiador cadastrado!');
     } catch {
@@ -584,12 +619,14 @@ export default function AdminPage() {
 
   const handleEditSupporter = (s: Supporter) => {
     setEditingSupporterId(s.id || null);
+    setSupporterBannerStats(null);
     setSupporterForm({
       name: s.name,
       url: s.url,
       tagline: s.tagline || '',
       role: s.role || 'Apoiador',
       avatar: s.avatar || '',
+      banner_url: s.banner_url || '',
       is_owner: Boolean(s.is_owner || (s.sort_order ?? 0) < 0),
     });
   };
@@ -1663,6 +1700,78 @@ export default function AdminPage() {
                     )}
                   </div>
                 ))}
+
+                {/* Plano de Fundo Desfocado Exclusivo da Página /apoiadores */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs text-zinc-400">
+                      Plano de Fundo do Card na Página de Apoiadores (Desfocado, opcional)
+                    </label>
+                    {supporterForm.banner_url && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSupporterForm({ ...supporterForm, banner_url: '' });
+                          setSupporterBannerStats(null);
+                        }}
+                        className="text-[11px] text-red-400 hover:underline"
+                      >
+                        Remover fundo
+                      </button>
+                    )}
+                  </div>
+
+                  <label className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-gothic-gold/50 hover:border-gothic-gold bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
+                    <Upload className="w-4 h-4 text-gothic-gold" />
+                    <span className="text-xs font-semibold text-zinc-200">
+                      {uploadingSupporterBanner
+                        ? 'Comprimindo e enviando...'
+                        : 'Enviar plano de fundo do PC (WebP automático)'}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      Exibido apenas na página /apoiadores (o carrossel mantém o padrão)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingSupporterBanner}
+                      onChange={handleSupporterBannerFile}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {supporterBannerStats && (
+                    <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>{supporterBannerStats}</span>
+                    </p>
+                  )}
+
+                  <input
+                    type="url"
+                    placeholder="Ou cole a URL da imagem de fundo..."
+                    value={supporterForm.banner_url}
+                    onChange={(e) =>
+                      setSupporterForm({ ...supporterForm, banner_url: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                  />
+
+                  {supporterForm.banner_url && (
+                    <div className="relative h-20 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={supporterForm.banner_url}
+                        alt="Prévia do fundo do apoiador"
+                        className="absolute inset-0 w-full h-full object-cover scale-105 blur-[3px] opacity-55"
+                      />
+                      <span className="relative z-10 text-[11px] font-semibold text-zinc-200 bg-black/65 px-2.5 py-1 rounded-full border border-zinc-700">
+                        Prévia do Fundo Desfocado (/apoiadores)
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Toggle Efeito Cristal Glass Vermelho (Dona / Destaque) */}
                 <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-lycoris-950/70 via-zinc-900 to-zinc-950 border border-lycoris-700/50 hover:border-lycoris-500 cursor-pointer transition-all">
                   <input
@@ -1732,6 +1841,11 @@ export default function AdminPage() {
                       {(s.sort_order ?? 0) < 0 && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-lycoris-600/20 border border-lycoris-500/40 text-lycoris-300 font-semibold">
                           Cristal Carmesim
+                        </span>
+                      )}
+                      {s.banner_url && (
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
+                          Com fundo em /apoiadores
                         </span>
                       )}
                     </div>

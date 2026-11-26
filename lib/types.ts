@@ -40,6 +40,7 @@ export interface Supporter {
   tagline: string;
   role: string;
   avatar?: string | null;
+  banner_url?: string | null;
   sort_order?: number;
   is_owner?: boolean;
 }
