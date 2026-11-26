@@ -1024,116 +1024,58 @@ export default function AdminPage() {
             <span>Inscrições ({registrations.length})</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('supporters')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'supporters'
-                ? 'border-lycoris-500 text-lycoris-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <HeartHandshake className="w-4 h-4" />
-            <span>Apoiadores ({supporters.length})</span>
-            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
-          </button>
+          {isMasterUnlocked && (
+            <>
+              <button
+                onClick={() => setActiveTab('supporters')}
+                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'supporters'
+                    ? 'border-lycoris-500 text-lycoris-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <HeartHandshake className="w-4 h-4" />
+                <span>Apoiadores ({supporters.length})</span>
+              </button>
 
-          <button
-            onClick={() => setActiveTab('stats')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'stats'
-                ? 'border-lycoris-500 text-lycoris-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Destaques do Topo ({heroStats.length})</span>
-            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
-          </button>
+              <button
+                onClick={() => setActiveTab('stats')}
+                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'stats'
+                    ? 'border-lycoris-500 text-lycoris-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Destaques do Topo ({heroStats.length})</span>
+              </button>
 
-          <button
-            onClick={() => setActiveTab('sawvr')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'sawvr'
-                ? 'border-lycoris-500 text-lycoris-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4 text-gothic-gold" />
-            <span>Catálogo SawVR ({sawCatalog.length})</span>
-            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
-          </button>
+              <button
+                onClick={() => setActiveTab('sawvr')}
+                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'sawvr'
+                    ? 'border-lycoris-500 text-lycoris-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4 text-gothic-gold" />
+                <span>Catálogo SawVR ({sawCatalog.length})</span>
+              </button>
 
-          <button
-            onClick={() => setActiveTab('comments')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'comments'
-                ? 'border-lycoris-500 text-lycoris-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>Moderação de Mensagens ({allComments.length})</span>
-            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
-          </button>
-        </div>
-
-        {/* Bloqueio de Segundo Nível para Abas Restritas ao Administrador Principal */}
-        {(activeTab === 'supporters' ||
-          activeTab === 'stats' ||
-          activeTab === 'comments' ||
-          activeTab === 'sawvr') &&
-          !isMasterUnlocked && (
-            <div className="max-w-md mx-auto my-10 p-8 rounded-2xl bg-zinc-950/90 border border-lycoris-800/60 shadow-lycoris-glow backdrop-blur-md space-y-5 text-center">
-              <div className="w-12 h-12 rounded-full bg-lycoris-950 border border-lycoris-700 mx-auto flex items-center justify-center text-lycoris-400">
-                <Lock className="w-6 h-6" />
-              </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-widest text-gothic-gold font-bold">
-                  Nível de Segurança 2
-                </span>
-                <h2 className="font-serif text-xl font-bold text-white">
-                  Acesso Restrito ao <span className="text-lycoris-500">Admin Principal</span>
-                </h2>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  As abas <strong>Apoiadores</strong>, <strong>Destaques do Topo</strong>,{' '}
-                  <strong>Catálogo SawVR</strong> e <strong>Moderação de Mensagens</strong> exigem a senha do Administrador Principal para visualização e edição.
-                </p>
-              </div>
-
-              <form onSubmit={handleMasterUnlock} className="space-y-3 text-left">
-                <div>
-                  <label className="block text-xs text-zinc-300 font-semibold mb-1.5">
-                    Senha do Administrador Principal
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      required
-                      placeholder="Digite a segunda senha..."
-                      value={masterPasswordInput}
-                      onChange={(e) => setMasterPasswordInput(e.target.value)}
-                      className="w-full px-4 py-2.5 text-sm rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-lycoris-500"
-                    />
-                    <Lock className="w-4 h-4 text-zinc-500 absolute right-3.5 top-3" />
-                  </div>
-                </div>
-
-                {masterAuthError && (
-                  <div className="p-2.5 rounded-lg bg-red-950/60 border border-red-800 text-xs text-red-300 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{masterAuthError}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
-                >
-                  Desbloquear Abas Principais
-                </button>
-              </form>
-            </div>
+              <button
+                onClick={() => setActiveTab('comments')}
+                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'comments'
+                    ? 'border-lycoris-500 text-lycoris-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Moderação de Mensagens ({allComments.length})</span>
+              </button>
+            </>
           )}
+        </div>
 
         {/* ============================================================== */}
         {/* ABA 1: EVENTOS */}
