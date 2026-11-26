@@ -284,7 +284,7 @@ export default function GallerySection({
       )}
 
       {showViewAllButton && (
-        <div className="mt-10 sm:mt-14 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+        <div className="mt-10 sm:mt-14 flex items-center justify-center">
           <Link
             href="/galeria"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white font-semibold text-xs sm:text-sm shadow-lycoris-glow hover:shadow-lycoris-glow-lg transition-all duration-300 hover:-translate-y-0.5 border border-lycoris-400/40"
@@ -294,14 +294,6 @@ export default function GallerySection({
               Ver Galeria Completa{images.length > 6 ? ` (${images.length} fotos)` : ''}
             </span>
             <ArrowRight className="w-4 h-4 text-lycoris-200" />
-          </Link>
-
-          <Link
-            href="/galeria#enviar-foto"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-zinc-900/85 hover:bg-zinc-800 text-zinc-200 hover:text-white font-semibold text-xs sm:text-sm border border-zinc-700/70 hover:border-lycoris-600/60 backdrop-blur-sm transition-all duration-300"
-          >
-            <Upload className="w-4 h-4 text-lycoris-400" />
-            <span>Enviar Foto da Comunidade</span>
           </Link>
         </div>
       )}
