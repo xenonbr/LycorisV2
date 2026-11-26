@@ -26,8 +26,9 @@ import {
   ChevronLeft,
   ChevronRight,
   GripVertical,
+  ShoppingBag,
 } from 'lucide-react';
-import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration, HeroStat } from '@/lib/types';
+import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration, HeroStat, SawCatalogItem } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
 import LycorisParticles from '@/components/LycorisParticles';
 
@@ -68,6 +69,18 @@ const EMPTY_EVENT = {
   world_url: '',
   image_url: '',
   category: 'Encontro Oficial',
+};
+
+const EMPTY_SAW_ITEM = {
+  title: '',
+  description: '',
+  price: '',
+  category: 'Headset VR',
+  condition: 'Novo / Lacrado',
+  image_url: '',
+  contact_url: 'https://discord.gg/V5ykbQsBAE',
+  available: true,
+  featured: false,
 };
 
 function formatBytes(bytes: number) {
@@ -125,7 +138,7 @@ export default function AdminPage() {
   const [masterPasswordInput, setMasterPasswordInput] = useState('');
   const [masterAuthError, setMasterAuthError] = useState('');
   const [activeTab, setActiveTab] = useState<
-    'events' | 'registrations' | 'supporters' | 'gallery' | 'comments' | 'stats'
+    'events' | 'registrations' | 'supporters' | 'gallery' | 'comments' | 'stats' | 'sawvr'
   >('events');
 
   // Estados de dados
@@ -135,6 +148,11 @@ export default function AdminPage() {
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
   const [supporters, setSupporters] = useState<Supporter[]>([]);
   const [heroStats, setHeroStats] = useState<HeroStat[]>(INITIAL_HERO_STATS);
+  const [sawCatalog, setSawCatalog] = useState<SawCatalogItem[]>([]);
+  const [sawForm, setSawForm] = useState(EMPTY_SAW_ITEM);
+  const [editingSawId, setEditingSawId] = useState<string | null>(null);
+  const [uploadingSawImage, setUploadingSawImage] = useState(false);
+  const [sawCompressionStats, setSawCompressionStats] = useState<string | null>(null);
   const [savingStats, setSavingStats] = useState(false);
   const [customBlockedWords, setCustomBlockedWords] = useState<string[]>([]);
   const [newBlockedWord, setNewBlockedWord] = useState('');
@@ -335,7 +353,7 @@ export default function AdminPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [resEv, resGal, resComm, resReg, resSup, resStats, resMod] = await Promise.all([
+      const [resEv, resGal, resComm, resReg, resSup, resStats, resMod, resSaw] = await Promise.all([
         api('/api/events'),
         api('/api/gallery?includeHidden=true'),
         api('/api/comments'),
@@ -343,6 +361,7 @@ export default function AdminPage() {
         api('/api/supporters'),
         api('/api/stats'),
         api('/api/moderation'),
+        api('/api/sawvr'),
       ]);
 
       if (resReg.status === 401) {
@@ -359,11 +378,117 @@ export default function AdminPage() {
         const m = await resMod.json();
         if (Array.isArray(m.words)) setCustomBlockedWords(m.words);
       }
+      if (resSaw.ok) {
+        const saw = await resSaw.json();
+        if (Array.isArray(saw)) setSawCatalog(saw);
+      }
       if (resEv.ok) setEvents(await resEv.json());
       if (resGal.ok) setGallery(await resGal.json());
       if (resComm.ok) setAllComments(await resComm.json());
     } catch (err) {
       console.warn('Erro ao atualizar dados do painel:', err);
+    }
+  };
+
+  // Catálogo SawVR (Nível 2 de Administração)
+  const handleSawImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingSawImage(true);
+    setSawCompressionStats('Comprimindo foto do produto...');
+    try {
+      const originalSize = file.size;
+      const compressed = await compressImageFile(file, 1280, 0.82);
+      const savedPct = Math.max(0, Math.round((1 - compressed.size / originalSize) * 100));
+
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'sawvr');
+
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+
+      setSawForm((prev) => ({ ...prev, image_url: data.url }));
+      setSawCompressionStats(
+        `Comprimido: ${formatBytes(originalSize)} → ${formatBytes(compressed.size)} (WebP, -${savedPct}%)`
+      );
+      showToast('Foto do produto comprimida e enviada!');
+    } catch (err: any) {
+      setSawCompressionStats(null);
+      showToast(err.message || 'Erro ao enviar foto do produto');
+    } finally {
+      setUploadingSawImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSaveSawItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const editing = editingSawId;
+    try {
+      const res = await api('/api/sawvr', {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editing ? { ...sawForm, id: editing } : sawForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao salvar anúncio');
+        return;
+      }
+      setSawForm(EMPTY_SAW_ITEM);
+      setEditingSawId(null);
+      setSawCompressionStats(null);
+      await fetchDashboardData();
+      showToast(editing ? 'Anúncio atualizado no catálogo!' : 'Anúncio publicado no catálogo SawVR!');
+    } catch {
+      showToast('Erro ao salvar anúncio');
+    }
+  };
+
+  const handleEditSawItem = (item: SawCatalogItem) => {
+    setEditingSawId(item.id);
+    setSawCompressionStats(null);
+    setSawForm({
+      title: item.title,
+      description: item.description || '',
+      price: item.price,
+      category: item.category || 'Headset VR',
+      condition: item.condition || 'Novo / Lacrado',
+      image_url: item.image_url || '',
+      contact_url: item.contact_url || 'https://discord.gg/V5ykbQsBAE',
+      available: item.available !== false,
+      featured: Boolean(item.featured),
+    });
+  };
+
+  const handleToggleSawAvailable = async (item: SawCatalogItem) => {
+    try {
+      const res = await api('/api/sawvr', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id, available: !item.available }),
+      });
+      if (res.ok) {
+        setSawCatalog((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, available: !item.available } : i))
+        );
+        showToast(!item.available ? 'Item marcado como Disponível' : 'Item marcado como Indisponível');
+      }
+    } catch {
+      showToast('Erro ao atualizar status');
+    }
+  };
+
+  const handleDeleteSawItem = async (id: string) => {
+    if (!confirm('Remover este anúncio do catálogo SawVR?')) return;
+    const res = await api('/api/sawvr?id=' + id, { method: 'DELETE' });
+    if (res.ok) {
+      setSawCatalog((prev) => prev.filter((i) => i.id !== id));
+      showToast('Anúncio removido');
+    } else {
+      showToast('Erro ao remover anúncio');
     }
   };
 
@@ -926,6 +1051,19 @@ export default function AdminPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab('sawvr')}
+            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'sawvr'
+                ? 'border-lycoris-500 text-lycoris-400'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4 text-gothic-gold" />
+            <span>Catálogo SawVR ({sawCatalog.length})</span>
+            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
+          </button>
+
+          <button
             onClick={() => setActiveTab('comments')}
             className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'comments'
@@ -940,7 +1078,10 @@ export default function AdminPage() {
         </div>
 
         {/* Bloqueio de Segundo Nível para Abas Restritas ao Administrador Principal */}
-        {(activeTab === 'supporters' || activeTab === 'stats' || activeTab === 'comments') &&
+        {(activeTab === 'supporters' ||
+          activeTab === 'stats' ||
+          activeTab === 'comments' ||
+          activeTab === 'sawvr') &&
           !isMasterUnlocked && (
             <div className="max-w-md mx-auto my-10 p-8 rounded-2xl bg-zinc-950/90 border border-lycoris-800/60 shadow-lycoris-glow backdrop-blur-md space-y-5 text-center">
               <div className="w-12 h-12 rounded-full bg-lycoris-950 border border-lycoris-700 mx-auto flex items-center justify-center text-lycoris-400">
@@ -954,8 +1095,8 @@ export default function AdminPage() {
                   Acesso Restrito ao <span className="text-lycoris-500">Admin Principal</span>
                 </h2>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  As abas <strong>Apoiadores</strong>, <strong>Destaques do Topo</strong> e{' '}
-                  <strong>Moderação de Mensagens</strong> exigem a senha do Administrador Principal para visualização e edição.
+                  As abas <strong>Apoiadores</strong>, <strong>Destaques do Topo</strong>,{' '}
+                  <strong>Catálogo SawVR</strong> e <strong>Moderação de Mensagens</strong> exigem a senha do Administrador Principal para visualização e edição.
                 </p>
               </div>
 
@@ -1775,6 +1916,279 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* ABA: CATÁLOGO SAWVR (NÍVEL 2) */}
+        {/* ============================================================== */}
+        {activeTab === 'sawvr' && isMasterUnlocked && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
+              <div className="flex items-center justify-between">
+                <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-gothic-gold" />
+                  {editingSawId ? 'Editar Anúncio SawVR' : 'Novo Anúncio SawVR'}
+                </h2>
+                <Link
+                  href="/sawvr"
+                  target="_blank"
+                  className="text-[11px] text-gothic-gold hover:underline flex items-center gap-1"
+                >
+                  <span>Abrir /sawvr</span>
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <form onSubmit={handleSaveSawItem} className="space-y-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Nome do Equipamento / Produto</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Meta Quest 3 128GB ou Kit 3x Vive Tracker 3.0"
+                    value={sawForm.title}
+                    onChange={(e) => setSawForm({ ...sawForm, title: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Preço / Valor</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: R$ 3.490 ou Sob Consulta"
+                      value={sawForm.price}
+                      onChange={(e) => setSawForm({ ...sawForm, price: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs font-semibold focus:outline-none focus:border-gothic-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Categoria</label>
+                    <select
+                      value={sawForm.category}
+                      onChange={(e) => setSawForm({ ...sawForm, category: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                    >
+                      <option value="Headset VR">Headset VR</option>
+                      <option value="Full Body Tracking">Full Body Tracking</option>
+                      <option value="Acessórios VR">Acessórios VR</option>
+                      <option value="Hardware & PC">Hardware &amp; PC</option>
+                      <option value="Áudio & Periféricos">Áudio &amp; Periféricos</option>
+                      <option value="Outros Eletrônicos">Outros Eletrônicos</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Condição do Item</label>
+                    <select
+                      value={sawForm.condition}
+                      onChange={(e) => setSawForm({ ...sawForm, condition: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                    >
+                      <option value="Novo / Lacrado">Novo / Lacrado</option>
+                      <option value="Seminovo">Seminovo</option>
+                      <option value="Sob Encomenda">Sob Encomenda</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Link de Contato (Discord/WhatsApp)</label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://discord.gg/..."
+                      value={sawForm.contact_url}
+                      onChange={(e) => setSawForm({ ...sawForm, contact_url: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                    />
+                  </div>
+                </div>
+
+                {/* Upload da foto do produto com compressão automática WebP */}
+                <div className="space-y-2 pt-1">
+                  <label className="block text-xs text-zinc-400">
+                    Foto do Produto (Compressão Automática WebP)
+                  </label>
+                  <label className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-gothic-gold/50 hover:border-gothic-gold bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
+                    <Upload className="w-4 h-4 text-gothic-gold" />
+                    <span className="text-xs font-semibold text-zinc-200">
+                      {uploadingSawImage
+                        ? 'Comprimindo e enviando...'
+                        : 'Enviar foto do equipamento do PC'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingSawImage}
+                      onChange={handleSawImageFileChange}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {sawCompressionStats && (
+                    <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>{sawCompressionStats}</span>
+                    </p>
+                  )}
+
+                  <input
+                    type="url"
+                    placeholder="Ou cole a URL da imagem do produto..."
+                    value={sawForm.image_url}
+                    onChange={(e) => setSawForm({ ...sawForm, image_url: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    Descrição / Especificações
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Detalhes do item, itens inclusos na caixa, garantia, formas de envio..."
+                    value={sawForm.description}
+                    onChange={(e) => setSawForm({ ...sawForm, description: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sawForm.available}
+                      onChange={(e) => setSawForm({ ...sawForm, available: e.target.checked })}
+                      className="w-4 h-4 accent-emerald-500 rounded"
+                    />
+                    <span>Disponível em estoque</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-gothic-gold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sawForm.featured}
+                      onChange={(e) => setSawForm({ ...sawForm, featured: e.target.checked })}
+                      className="w-4 h-4 accent-amber-500 rounded"
+                    />
+                    <span>Destacar anúncio</span>
+                  </label>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-gothic-gold hover:bg-amber-400 text-black text-xs font-bold shadow-gold-glow transition-all"
+                  >
+                    {editingSawId ? 'Salvar Alterações' : 'Publicar no Catálogo SawVR'}
+                  </button>
+                  {editingSawId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSawId(null);
+                        setSawForm(EMPTY_SAW_ITEM);
+                        setSawCompressionStats(null);
+                      }}
+                      className="px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="lg:col-span-7 space-y-4">
+              <h2 className="font-serif text-lg font-bold text-white">
+                Itens no Catálogo SawVR ({sawCatalog.length})
+              </h2>
+
+              {sawCatalog.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
+                  Nenhum anúncio publicado no catálogo SawVR ainda.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sawCatalog.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        {item.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.image_url}
+                            alt={item.title}
+                            className="w-14 h-14 rounded-xl object-cover border border-zinc-800 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 shrink-0">
+                            <ShoppingBag className="w-5 h-5" />
+                          </div>
+                        )}
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-white text-sm truncate">
+                              {item.title}
+                            </span>
+                            <span className="font-serif font-bold text-xs text-gothic-gold">
+                              {item.price}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
+                              {item.category}
+                            </span>
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                                item.available
+                                  ? 'bg-emerald-950/80 border border-emerald-700/60 text-emerald-300'
+                                  : 'bg-zinc-900 border border-zinc-700 text-zinc-400'
+                              }`}
+                            >
+                              {item.available ? 'Disponível' : 'Indisponível'}
+                            </span>
+                          </div>
+                          {item.description && (
+                            <p className="text-xs text-zinc-400 line-clamp-1">{item.description}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSawAvailable(item)}
+                          className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs"
+                          title="Alternar disponibilidade"
+                        >
+                          {item.available ? 'Esgotar' : 'Ativar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditSawItem(item)}
+                          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSawItem(item.id)}
+                          title="Remover anúncio"
+                          className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

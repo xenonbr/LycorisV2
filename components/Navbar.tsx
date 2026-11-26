@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Sparkles, Calendar, Image as ImageIcon, HeartHandshake, ExternalLink, Menu, X } from 'lucide-react';
+import { Sparkles, Calendar, Image as ImageIcon, HeartHandshake, ShoppingBag, ExternalLink, Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -44,34 +44,41 @@ export default function Navbar() {
         </Link>
 
         {/* Links Desktop */}
-        <nav className="hidden md:flex items-center gap-8 font-sans text-sm font-medium text-zinc-300">
+        <nav className="hidden md:flex items-center gap-7 font-sans text-sm font-medium text-zinc-300">
           <Link
-            href="#sobre"
+            href="/#sobre"
             className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
           >
             <Sparkles className="w-4 h-4 text-lycoris-500" />
             Sobre
           </Link>
           <Link
-            href="#eventos"
+            href="/#eventos"
             className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
           >
             <Calendar className="w-4 h-4 text-lycoris-500" />
             Eventos
           </Link>
           <Link
-            href="#galeria"
+            href="/#galeria"
             className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
           >
             <ImageIcon className="w-4 h-4 text-lycoris-500" />
             Galeria
           </Link>
           <Link
-            href="#apoiadores"
+            href="/#apoiadores"
             className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
           >
             <HeartHandshake className="w-4 h-4 text-gothic-gold" />
             Apoiadores
+          </Link>
+          <Link
+            href="/sawvr"
+            className="px-3 py-1 rounded-full bg-zinc-900/90 border border-gothic-gold/35 text-gothic-gold hover:bg-gothic-gold/15 hover:border-gothic-gold transition-all flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-gothic-gold" />
+            Loja SawVR
           </Link>
         </nav>
 
@@ -107,7 +114,7 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-gothic-bg/98 border-b border-lycoris-900/40 backdrop-blur-xl px-5 py-5 space-y-1 shadow-2xl">
           <Link
-            href="#sobre"
+            href="/#sobre"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
@@ -115,7 +122,7 @@ export default function Navbar() {
             <span>Sobre</span>
           </Link>
           <Link
-            href="#eventos"
+            href="/#eventos"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
@@ -123,7 +130,7 @@ export default function Navbar() {
             <span>Eventos</span>
           </Link>
           <Link
-            href="#galeria"
+            href="/#galeria"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
@@ -131,12 +138,20 @@ export default function Navbar() {
             <span>Galeria Comunitária</span>
           </Link>
           <Link
-            href="#apoiadores"
+            href="/#apoiadores"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
             <HeartHandshake className="w-4 h-4 text-gothic-gold" />
             <span>Apoiadores</span>
+          </Link>
+          <Link
+            href="/sawvr"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 text-gothic-gold font-semibold py-3 px-3 rounded-xl bg-zinc-900/60 border border-gothic-gold/30"
+          >
+            <ShoppingBag className="w-4 h-4 text-gothic-gold" />
+            <span>Catálogo SawVR (VR &amp; Eletrônicos)</span>
           </Link>
           <div className="pt-3">
             <a

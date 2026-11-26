@@ -59,3 +59,17 @@ export interface HeroStat {
   label: string;
   color?: 'lycoris-400' | 'gothic-gold' | 'white' | 'lycoris-500';
 }
+
+export interface SawCatalogItem {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  category: string;
+  condition: string;
+  image_url: string;
+  contact_url: string;
+  available: boolean;
+  featured?: boolean;
+  created_at: string;
+}
