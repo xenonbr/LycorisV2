@@ -1770,7 +1770,7 @@ export default function AdminPage() {
                       <img
                         src={supporterForm.banner_url}
                         alt="Prévia do fundo do apoiador"
-                        className="absolute inset-0 w-full h-full object-cover scale-105 blur-[3px] opacity-55"
+                        className="absolute inset-0 w-full h-full object-cover scale-105 blur-[2.4px] opacity-60"
                       />
                       <span className="relative z-10 text-[11px] font-semibold text-zinc-200 bg-black/65 px-2.5 py-1 rounded-full border border-zinc-700">
                         Prévia do Fundo Desfocado (/apoiadores)

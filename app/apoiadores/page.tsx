@@ -166,7 +166,7 @@ export default function ApoiadoresPage() {
                         src={supporter.banner_url!}
                         alt=""
                         aria-hidden="true"
-                        className="w-full h-full object-cover scale-105 blur-[3.5px] opacity-50 group-hover:opacity-65 group-hover:scale-110 transition-all duration-500"
+                        className="w-full h-full object-cover scale-105 blur-[2.5px] opacity-55 group-hover:opacity-70 group-hover:scale-110 transition-all duration-500"
                       />
                       <div
                         className={`absolute inset-0 ${
