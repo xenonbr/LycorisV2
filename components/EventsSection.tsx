@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, Clock, MapPin, ExternalLink, Copy, Check, UserPlus, X, Radio } from 'lucide-react';
 import { VRChatEvent } from '@/lib/types';
 
@@ -38,6 +39,26 @@ export default function EventsSection() {
     setRegEvent(null);
     setRegForm({ name: '', username: '', notes: '' });
   };
+
+  // Trava a rolagem da página de fundo e fecha com ESC quando o modal de inscrição estiver aberto
+  useEffect(() => {
+    if (!regEvent) return;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') closeRegistration();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [regEvent]);
 
   const submitRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,112 +264,115 @@ export default function EventsSection() {
         </div>
       )}
 
-      {/* Modal de Inscrição */}
-      {regEvent && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={closeRegistration}
-        >
+      {/* Modal de Inscrição renderizado em Portal no document.body para nunca sobrepor com seções abaixo */}
+      {regEvent &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            role="dialog"
-            aria-modal="true"
-            className="relative w-full max-w-md rounded-2xl bg-zinc-950 border border-lycoris-800/60 p-6 shadow-lycoris-glow space-y-4"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overscroll-contain"
+            onClick={closeRegistration}
           >
-            <button
-              onClick={closeRegistration}
-              aria-label="Fechar"
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl bg-zinc-950 border border-lycoris-800/60 p-6 shadow-lycoris-glow space-y-4"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X className="w-5 h-5" />
-            </button>
+              <button
+                onClick={closeRegistration}
+                aria-label="Fechar"
+                className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            {regStatus === 'done' ? (
-              <div className="text-center py-6 space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-950 border border-emerald-700 mx-auto flex items-center justify-center">
-                  <Check className="w-6 h-6 text-emerald-400" />
-                </div>
-                <h3 className="font-serif text-xl font-bold text-white">Inscrição confirmada!</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Nos vemos em <strong className="text-white">{regEvent.vrchat_world}</strong> ({regEvent.title}).
-                </p>
-                <button
-                  onClick={closeRegistration}
-                  className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
-                >
-                  Fechar
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={submitRegistration} className="space-y-4">
-                <div className="space-y-1 pr-6">
-                  <p className="text-[11px] uppercase tracking-widest text-lycoris-400 font-bold">Inscrição</p>
-                  <h3 className="font-serif text-xl font-bold text-white">{regEvent.title}</h3>
-                  <p className="text-xs text-zinc-400">
-                    {new Date(regEvent.date + 'T12:00:00').toLocaleDateString('pt-BR')} às {regEvent.time}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Seu nome</label>
-                  <input
-                    required
-                    maxLength={100}
-                    value={regForm.name}
-                    onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
-                    placeholder="Como podemos te chamar?"
-                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">
-                    {regEvent.is_external
-                      ? 'Seu usuário (VRChat / Discord / Rede Social)'
-                      : 'Usuário no VRChat'}
-                  </label>
-                  <input
-                    required
-                    maxLength={100}
-                    value={regForm.username}
-                    onChange={(e) => setRegForm({ ...regForm, username: e.target.value })}
-                    placeholder={
-                      regEvent.is_external
-                        ? 'Ex: @seunick no TikTok / Discord / VRChat'
-                        : 'Seu nick exato no VRChat'
-                    }
-                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Observações (opcional)</label>
-                  <textarea
-                    rows={2}
-                    maxLength={300}
-                    value={regForm.notes}
-                    onChange={(e) => setRegForm({ ...regForm, notes: e.target.value })}
-                    placeholder="Plataforma (PC/Quest/VR), acessibilidade, etc."
-                    className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500 resize-none"
-                  />
-                </div>
-
-                {regError && (
-                  <div className="p-3 rounded-lg bg-red-950/60 border border-red-800 text-xs text-red-300">
-                    {regError}
+              {regStatus === 'done' ? (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-950 border border-emerald-700 mx-auto flex items-center justify-center">
+                    <Check className="w-6 h-6 text-emerald-400" />
                   </div>
-                )}
+                  <h3 className="font-serif text-xl font-bold text-white">Inscrição confirmada!</h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Nos vemos em <strong className="text-white">{regEvent.vrchat_world}</strong> ({regEvent.title}).
+                  </p>
+                  <button
+                    onClick={closeRegistration}
+                    className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={submitRegistration} className="space-y-4">
+                  <div className="space-y-1 pr-6">
+                    <p className="text-[11px] uppercase tracking-widest text-lycoris-400 font-bold">Inscrição</p>
+                    <h3 className="font-serif text-xl font-bold text-white">{regEvent.title}</h3>
+                    <p className="text-xs text-zinc-400">
+                      {formatEventDatePtBr(regEvent.date)} às {regEvent.time}
+                    </p>
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={regStatus === 'sending'}
-                  className="w-full py-3 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-60 text-white font-semibold text-sm shadow-lycoris-glow transition-all"
-                >
-                  {regStatus === 'sending' ? 'Enviando...' : 'Confirmar Inscrição'}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Seu nome</label>
+                    <input
+                      required
+                      maxLength={100}
+                      value={regForm.name}
+                      onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                      placeholder="Como podemos te chamar?"
+                      className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">
+                      {regEvent.is_external
+                        ? 'Seu usuário (VRChat / Discord / Rede Social)'
+                        : 'Usuário no VRChat'}
+                    </label>
+                    <input
+                      required
+                      maxLength={100}
+                      value={regForm.username}
+                      onChange={(e) => setRegForm({ ...regForm, username: e.target.value })}
+                      placeholder={
+                        regEvent.is_external
+                          ? 'Ex: @seunick no TikTok / Discord / VRChat'
+                          : 'Seu nick exato no VRChat'
+                      }
+                      className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Observações (opcional)</label>
+                    <textarea
+                      rows={2}
+                      maxLength={300}
+                      value={regForm.notes}
+                      onChange={(e) => setRegForm({ ...regForm, notes: e.target.value })}
+                      placeholder="Plataforma (PC/Quest/VR), acessibilidade, etc."
+                      className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500 resize-none"
+                    />
+                  </div>
+
+                  {regError && (
+                    <div className="p-3 rounded-lg bg-red-950/60 border border-red-800 text-xs text-red-300">
+                      {regError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={regStatus === 'sending'}
+                    className="w-full py-3 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-60 text-white font-semibold text-sm shadow-lycoris-glow transition-all"
+                  >
+                    {regStatus === 'sending' ? 'Enviando...' : 'Confirmar Inscrição'}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </section>
   );
 }

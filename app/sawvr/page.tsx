@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -39,6 +40,18 @@ export default function SawVRPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!activeItem) return;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [activeItem]);
 
   const categories = [
     'Todos',
@@ -302,11 +315,13 @@ export default function SawVRPage() {
       </section>
 
       {/* Modal de Detalhes do Produto */}
-      {activeItem && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
-          onClick={() => setActiveItem(null)}
-        >
+      {activeItem &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overscroll-contain"
+            onClick={() => setActiveItem(null)}
+          >
           <div
             className="relative max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-zinc-950 border border-gothic-gold/40 shadow-2xl p-6 space-y-5"
             onClick={(e) => e.stopPropagation()}
@@ -380,7 +395,8 @@ export default function SawVRPage() {
               </a>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <Footer />
