@@ -1078,112 +1078,107 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Abas de Navegação */}
-        <div className="flex border-b border-zinc-800 gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('events')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'events'
-                ? 'border-lycoris-500 text-lycoris-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Eventos Futuros ({events.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('gallery')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'gallery'
-                ? 'border-lycoris-500 text-lycoris-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <ImageIcon className="w-4 h-4" />
-            <span>Galeria de Fotos ({gallery.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('registrations')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === 'registrations'
-                ? 'border-lycoris-500 text-lycoris-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Inscrições ({registrations.length})</span>
-          </button>
-
-          {isMasterUnlocked && (
-            <>
-              <button
-                onClick={() => setActiveTab('supporters')}
-                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'supporters'
-                    ? 'border-lycoris-500 text-lycoris-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <HeartHandshake className="w-4 h-4" />
-                <span>Apoiadores ({supporters.length})</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('stats')}
-                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'stats'
-                    ? 'border-lycoris-500 text-lycoris-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Destaques do Topo ({heroStats.length})</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('sawvr')}
-                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'sawvr'
-                    ? 'border-lycoris-500 text-lycoris-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <ShoppingBag className="w-4 h-4 text-gothic-gold" />
-                <span>Catálogo SawVR ({sawCatalog.length})</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('submissions')}
-                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'submissions'
-                    ? 'border-lycoris-500 text-lycoris-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Clock className="w-4 h-4 text-lycoris-400" />
-                <span>Posts da Comunidade ({pendingPosts.length})</span>
-                {pendingPosts.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-lycoris-600 text-white text-[10px] font-bold">
-                    {pendingPosts.length}
+        {/* Abas de Navegação Otimizadas e Compactas (sem barra de rolagem horizontal) */}
+        <div className="p-2 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md flex flex-wrap items-center gap-1.5">
+          {[
+            {
+              id: 'events' as const,
+              label: 'Eventos',
+              count: events.length,
+              icon: Calendar,
+              visible: true,
+            },
+            {
+              id: 'gallery' as const,
+              label: 'Galeria',
+              count: gallery.length,
+              icon: ImageIcon,
+              visible: true,
+            },
+            {
+              id: 'registrations' as const,
+              label: 'Inscrições',
+              count: registrations.length,
+              icon: Users,
+              visible: true,
+            },
+            {
+              id: 'supporters' as const,
+              label: 'Apoiadores',
+              count: supporters.length,
+              icon: HeartHandshake,
+              visible: isMasterUnlocked,
+            },
+            {
+              id: 'stats' as const,
+              label: 'Destaques',
+              count: heroStats.length,
+              icon: Sparkles,
+              visible: isMasterUnlocked,
+            },
+            {
+              id: 'sawvr' as const,
+              label: 'SawVR',
+              count: sawCatalog.length,
+              icon: ShoppingBag,
+              goldIcon: true,
+              visible: isMasterUnlocked,
+            },
+            {
+              id: 'submissions' as const,
+              label: 'Aprovar Fotos',
+              count: pendingPosts.length,
+              icon: Clock,
+              alertBadge: pendingPosts.length > 0,
+              visible: isMasterUnlocked,
+            },
+            {
+              id: 'comments' as const,
+              label: 'Moderação',
+              count: allComments.length,
+              icon: MessageSquare,
+              visible: isMasterUnlocked,
+            },
+          ]
+            .filter((t) => t.visible)
+            .map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-lycoris-600/20 border border-lycoris-500/70 text-lycoris-200 shadow-lycoris-glow'
+                      : 'bg-zinc-900/60 hover:bg-zinc-900 border border-transparent hover:border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      tab.goldIcon
+                        ? 'text-gothic-gold'
+                        : isActive
+                        ? 'text-lycoris-400'
+                        : 'text-zinc-400'
+                    }`}
+                  />
+                  <span>{tab.label}</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-none ${
+                      tab.alertBadge
+                        ? 'bg-lycoris-600 text-white animate-pulse'
+                        : isActive
+                        ? 'bg-lycoris-950/90 text-lycoris-300 border border-lycoris-700/50'
+                        : 'bg-zinc-800/80 text-zinc-400'
+                    }`}
+                  >
+                    {tab.count}
                   </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('comments')}
-                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'comments'
-                    ? 'border-lycoris-500 text-lycoris-400'
-                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Moderação de Mensagens ({allComments.length})</span>
-              </button>
-            </>
-          )}
+                </button>
+              );
+            })}
         </div>
 
         {/* ============================================================== */}
