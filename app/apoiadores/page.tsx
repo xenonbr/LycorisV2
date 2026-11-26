@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import LycorisParticles from '@/components/LycorisParticles';
 import { INITIAL_SUPPORTERS } from '@/lib/mockData';
 import { Supporter } from '@/lib/types';
 import {
@@ -52,7 +51,6 @@ export default function ApoiadoresPage() {
 
   return (
     <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden flex flex-col bg-gothic-bg text-zinc-100">
-      <LycorisParticles />
       <Navbar />
 
       {/* Cabeçalho da Página de Apoiadores & Parceiros */}

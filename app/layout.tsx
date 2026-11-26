@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cinzel, Inter } from "next/font/google";
 import "./globals.css";
+import InitialPageLoader from "@/components/InitialPageLoader";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -76,7 +77,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${cinzel.variable} ${inter.variable} dark scroll-smooth`}>
       <body className="bg-gothic-bg text-zinc-100 font-sans selection:bg-lycoris-600 selection:text-white antialiased min-h-screen relative overflow-x-hidden">
-        {children}
+        <InitialPageLoader>{children}</InitialPageLoader>
       </body>
     </html>
   );

@@ -5,15 +5,11 @@ import EventsSection from '@/components/EventsSection';
 import GallerySection from '@/components/GallerySection';
 import SupportersSection from '@/components/SupportersSection';
 import Footer from '@/components/Footer';
-import LycorisParticles from '@/components/LycorisParticles';
 import { Moon, Sparkles, Compass, Shield, Heart } from 'lucide-react';
 
 export default function HomePage() {
   return (
     <main className="relative min-h-screen w-full max-w-[100vw] overflow-x-hidden flex flex-col bg-gothic-bg">
-      {/* Camada Interativa de Pétalas de Lycoris Flutuando */}
-      <LycorisParticles />
-
       {/* Barra de Navegação Superior */}
       <Navbar />
 

@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration, HeroStat, SawCatalogItem } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
-import LycorisParticles from '@/components/LycorisParticles';
 
 const TOKEN_KEY = 'lycoris_admin_token';
 const MASTER_TOKEN_KEY = 'lycoris_master_admin_token';
@@ -912,9 +911,6 @@ export default function AdminPage() {
   if (!isAuthenticated) {
     return (
       <main className="relative min-h-screen bg-gothic-bg flex items-center justify-center p-4 overflow-hidden">
-        {/* Flores e pétalas de Lycoris caindo no fundo da tela de login */}
-        <LycorisParticles />
-
         <div className="relative z-10 max-w-md w-full rounded-2xl bg-zinc-950/90 border border-lycoris-900/60 p-8 shadow-lycoris-glow backdrop-blur-md space-y-6">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-full bg-lycoris-950 border border-lycoris-700 mx-auto flex items-center justify-center text-lycoris-400">
@@ -974,9 +970,6 @@ export default function AdminPage() {
   // Painel Administrativo com flores de Lycoris ao fundo
   return (
     <main className="relative min-h-screen bg-gothic-bg text-zinc-100 p-4 sm:p-8 overflow-hidden">
-      {/* Flores e pétalas de Lycoris caindo no fundo do painel */}
-      <LycorisParticles />
-
       {/* Conteúdo em camada superior */}
       <div className="relative z-10 max-w-7xl mx-auto space-y-8">
         {/* Toast de Notificação */}

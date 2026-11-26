@@ -21,7 +21,11 @@ interface LycorisParticle {
   oscillationDistance: number;
 }
 
-export default function LycorisParticles() {
+export default function LycorisParticles({
+  className = 'pointer-events-none fixed inset-0 z-0 h-full w-full opacity-80',
+}: {
+  className?: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -290,7 +294,7 @@ export default function LycorisParticles() {
   return (
     <canvas
       ref={canvasRef}
-      className="pointer-events-none fixed inset-0 z-0 h-full w-full opacity-80"
+      className={className}
       aria-hidden="true"
     />
   );
