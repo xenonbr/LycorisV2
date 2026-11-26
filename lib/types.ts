@@ -88,3 +88,28 @@ export interface PendingGalleryPost {
   vrchat_world: string;
   created_at: string;
 }
+
+export type AdminModuleKey =
+  | 'events'
+  | 'gallery'
+  | 'registrations'
+  | 'supporters'
+  | 'stats'
+  | 'sawvr'
+  | 'submissions'
+  | 'comments';
+
+export interface ExtraAdminPassword {
+  id: string;
+  label: string;
+  password: string;
+  level: 1 | 2;
+  created_at: string;
+}
+
+export interface AdminAccessConfig {
+  level1Password: string;
+  level2Password: string;
+  extraPasswords: ExtraAdminPassword[];
+  level1Modules: Record<AdminModuleKey, boolean>;
+}

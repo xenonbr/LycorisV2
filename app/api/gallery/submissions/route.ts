@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isMasterAdminRequest, unauthorized } from '@/lib/auth';
+import { canAccessAdminModule, unauthorized } from '@/lib/auth';
 import { PendingGalleryPost } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -99,9 +99,9 @@ async function savePendingPosts(posts: PendingGalleryPost[]): Promise<void> {
   }
 }
 
-// GET: Apenas Admin Nível 2 pode listar os posts pendentes de aprovação
+// GET: Lista os posts pendentes de aprovação
 export async function GET(request: Request) {
-  if (!isMasterAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'submissions'))) return unauthorized();
   const posts = await getPendingPosts();
   return NextResponse.json(posts);
 }
@@ -231,9 +231,9 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT: Admin Nível 2 aprova um post pendente e o publica na galeria oficial
+// PUT: Aprova um post pendente e o publica na galeria oficial
 export async function PUT(request: Request) {
-  if (!isMasterAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'submissions'))) return unauthorized();
 
   try {
     const body = await request.json();
@@ -322,9 +322,9 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE: Admin Nível 2 recusa/exclui um post pendente e apaga o arquivo do storage
+// DELETE: Recusa/exclui um post pendente e apaga o arquivo do storage
 export async function DELETE(request: Request) {
-  if (!isMasterAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'submissions'))) return unauthorized();
 
   try {
     const { searchParams } = new URL(request.url);

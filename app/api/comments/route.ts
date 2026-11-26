@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isMasterAdminRequest, forbiddenMaster } from '@/lib/auth';
+import { canAccessAdminModule, forbiddenMaster } from '@/lib/auth';
 import { INITIAL_GALLERY } from '@/lib/mockData';
 import { validateCommentInput } from '@/lib/moderation';
 
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isMasterAdminRequest(request)) return forbiddenMaster();
+  if (!(await canAccessAdminModule(request, 'comments'))) return forbiddenMaster();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

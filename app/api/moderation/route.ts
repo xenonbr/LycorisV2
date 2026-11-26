@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isAdminRequest, isMasterAdminRequest, unauthorized, forbiddenMaster } from '@/lib/auth';
+import { isAdminRequest, canAccessAdminModule, unauthorized, forbiddenMaster } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!isMasterAdminRequest(request)) return forbiddenMaster();
+  if (!(await canAccessAdminModule(request, 'comments'))) return forbiddenMaster();
   try {
     const body = await request.json();
     const rawList: string[] = Array.isArray(body.words) ? body.words : [];

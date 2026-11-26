@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { SawCatalogItem } from '@/lib/types';
-import { isMasterAdminRequest, forbiddenMaster } from '@/lib/auth';
+import { canAccessAdminModule, forbiddenMaster } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +47,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!isMasterAdminRequest(request)) return forbiddenMaster();
+  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
   try {
     const body = await request.json();
     const title = String(body.title || '').trim();
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!isMasterAdminRequest(request)) return forbiddenMaster();
+  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
   try {
     const body = await request.json();
     if (!body.id) {
@@ -127,7 +127,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isMasterAdminRequest(request)) return forbiddenMaster();
+  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
