@@ -69,10 +69,10 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Coluna 3: Links e Conexões */}
+          {/* Coluna 3: Fundadores */}
           <div className="space-y-3">
             <h4 className="font-serif text-sm font-semibold text-white uppercase tracking-wider">
-              Conexões
+              Fundadores
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
@@ -88,7 +88,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="https://lupratuvr.vercel.app/"
+                  href="https://www.lupratu.com.br"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 hover:text-gothic-gold transition-colors"

@@ -10,7 +10,7 @@ export const INITIAL_HERO_STATS: HeroStat[] = [
 export const INITIAL_SUPPORTERS: Supporter[] = [
   {
     name: "LupratuVR",
-    url: "https://lupratuvr.vercel.app/",
+    url: "https://www.lupratu.com.br",
     tagline: "Vtuber & Streamer.",
     role: "Parceira Criativa",
   },
