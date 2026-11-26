@@ -29,6 +29,8 @@ export interface GalleryImage {
   likes: number;
   created_at: string;
   comments?: CommentItem[];
+  hidden?: boolean;
+  sort_order?: number;
 }
 
 export interface Supporter {

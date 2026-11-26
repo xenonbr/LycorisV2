@@ -21,6 +21,11 @@ import {
   HeartHandshake,
   Download,
   Upload,
+  Eye,
+  EyeOff,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
 } from 'lucide-react';
 import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration, HeroStat } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
@@ -125,6 +130,7 @@ export default function AdminPage() {
   const [regFilter, setRegFilter] = useState('');
   const [supporterForm, setSupporterForm] = useState(EMPTY_SUPPORTER);
   const [editingSupporterId, setEditingSupporterId] = useState<string | null>(null);
+  const [draggedGalleryId, setDraggedGalleryId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Formulário de Novo / Edição de Evento
@@ -286,7 +292,7 @@ export default function AdminPage() {
     try {
       const [resEv, resGal, resComm, resReg, resSup, resStats, resMod] = await Promise.all([
         api('/api/events'),
-        api('/api/gallery'),
+        api('/api/gallery?includeHidden=true'),
         api('/api/comments'),
         api('/api/registrations'),
         api('/api/supporters'),
@@ -557,6 +563,68 @@ export default function AdminPage() {
       }
     } catch (err) {
       showToast('Erro ao adicionar foto');
+    }
+  };
+
+  // Reordenar e Ocultar/Exibir Fotos da Galeria
+  const persistGalleryOrder = async (nextList: GalleryImage[], toastMsg?: string) => {
+    setGallery(nextList);
+    try {
+      const res = await api('/api/gallery', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: nextList.map((g) => g.id) }),
+      });
+      if (res.ok && toastMsg) showToast(toastMsg);
+    } catch {
+      showToast('Erro ao salvar ordem da galeria');
+    }
+  };
+
+  const handleMoveGallery = async (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= gallery.length) return;
+    const next = [...gallery];
+    const [moved] = next.splice(index, 1);
+    next.splice(targetIdx, 0, moved);
+    await persistGalleryOrder(next, 'Ordem da galeria atualizada!');
+  };
+
+  const handleDropGallery = async (targetId: string) => {
+    if (!draggedGalleryId || draggedGalleryId === targetId) {
+      setDraggedGalleryId(null);
+      return;
+    }
+    const fromIdx = gallery.findIndex((g) => g.id === draggedGalleryId);
+    const toIdx = gallery.findIndex((g) => g.id === targetId);
+    setDraggedGalleryId(null);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const next = [...gallery];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    await persistGalleryOrder(next, 'Ordem da galeria atualizada!');
+  };
+
+  const handleToggleGalleryHidden = async (id: string) => {
+    const target = gallery.find((g) => g.id === id);
+    if (!target) return;
+    const nextHiddenState = !target.hidden;
+    setGallery((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, hidden: nextHiddenState } : g))
+    );
+    try {
+      const res = await api('/api/gallery', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toggleHiddenId: id }),
+      });
+      if (res.ok) {
+        showToast(nextHiddenState ? 'Foto ocultada do site público' : 'Foto visível novamente no site');
+      } else {
+        showToast('Erro ao alterar visibilidade');
+      }
+    } catch {
+      showToast('Erro ao alterar visibilidade');
     }
   };
 
@@ -1168,31 +1236,119 @@ export default function AdminPage() {
             </div>
 
             <div className="lg:col-span-7 space-y-4">
-              <h3 className="font-serif text-lg font-bold text-white">Fotos Publicadas ({gallery.length})</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-white">
+                    Fotos na Galeria ({gallery.length})
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Arraste os cards ou use as setas para mudar a ordem de exibição. Clique no olho para ocultar do site sem apagar.
+                  </p>
+                </div>
+              </div>
 
               {gallery.length === 0 ? (
                 <div className="p-8 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
                   Nenhuma foto publicada na galeria ainda.
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {gallery.map((img) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {gallery.map((img, idx) => (
                     <div
                       key={img.id}
-                      className="relative group rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800"
+                      draggable
+                      onDragStart={() => setDraggedGalleryId(img.id)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => handleDropGallery(img.id)}
+                      onDragEnd={() => setDraggedGalleryId(null)}
+                      className={`relative group rounded-xl overflow-hidden bg-zinc-900 border transition-all cursor-grab active:cursor-grabbing ${
+                        draggedGalleryId === img.id
+                          ? 'opacity-40 border-lycoris-500 scale-95'
+                          : img.hidden
+                          ? 'border-zinc-800/60 opacity-60'
+                          : 'border-zinc-800 hover:border-lycoris-600/60'
+                      }`}
                     >
-                      <img src={img.url} alt={img.title} className="w-full h-32 object-cover" />
-                      <div className="p-2 space-y-0.5">
-                        <div className="font-semibold text-xs text-white truncate">{img.title}</div>
-                        <div className="text-[10px] text-zinc-400 truncate">{img.author}</div>
+                      <div className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.url}
+                          alt={img.title}
+                          draggable={false}
+                          className={`w-full h-36 object-cover ${img.hidden ? 'grayscale' : ''}`}
+                        />
+
+                        {/* Badge de posição e status */}
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/80 border border-zinc-700 text-[10px] font-bold text-zinc-200">
+                            <GripVertical className="w-3 h-3 text-zinc-400" />#{idx + 1}
+                          </span>
+                          {img.hidden && (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-950/90 border border-amber-700/70 text-[10px] font-bold text-amber-300">
+                              Oculta
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Botões de Ocultar e Excluir */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleGalleryHidden(img.id)}
+                            title={img.hidden ? 'Mostrar foto no site' : 'Ocultar foto sem apagar'}
+                            className={`p-1.5 rounded-md border transition-colors ${
+                              img.hidden
+                                ? 'bg-amber-600 hover:bg-amber-500 border-amber-400 text-white'
+                                : 'bg-black/80 hover:bg-zinc-800 border-zinc-700 text-zinc-200'
+                            }`}
+                          >
+                            {img.hidden ? (
+                              <EyeOff className="w-3.5 h-3.5" />
+                            ) : (
+                              <Eye className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteGallery(img.id)}
+                            title="Excluir foto permanentemente"
+                            className="p-1.5 rounded-md bg-black/80 hover:bg-red-600 border border-zinc-700 hover:border-red-500 text-white transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteGallery(img.id)}
-                        title="Excluir foto"
-                        className="absolute top-2 right-2 p-1.5 rounded-md bg-black/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+
+                      <div className="p-2.5 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-xs text-white truncate">
+                            {img.title}
+                          </div>
+                          <div className="text-[10px] text-zinc-400 truncate">{img.author}</div>
+                        </div>
+
+                        {/* Setas para mudar a ordem */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveGallery(idx, -1)}
+                            disabled={idx === 0}
+                            title="Mover para trás"
+                            className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-zinc-200 transition-colors"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveGallery(idx, 1)}
+                            disabled={idx === gallery.length - 1}
+                            title="Mover para frente"
+                            className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-zinc-200 transition-colors"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
