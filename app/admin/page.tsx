@@ -1785,7 +1785,11 @@ export default function AdminPage() {
                     type="checkbox"
                     checked={supporterForm.is_owner}
                     onChange={(e) =>
-                      setSupporterForm({ ...supporterForm, is_owner: e.target.checked })
+                      setSupporterForm({
+                        ...supporterForm,
+                        is_owner: e.target.checked,
+                        is_gold_crystal: e.target.checked ? false : supporterForm.is_gold_crystal,
+                      })
                     }
                     className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer"
                   />
@@ -1796,6 +1800,31 @@ export default function AdminPage() {
                     </span>
                     <span className="block text-[11px] text-zinc-400 leading-snug">
                       Troca o brilho dourado por vermelho carmesim translúcido em estilo cristal glass.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Toggle Efeito Cristal Glass Dourado */}
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-[#2c2107]/70 via-zinc-900 to-zinc-950 border border-gold-500/45 hover:border-gold-400 cursor-pointer transition-all">
+                  <input
+                    type="checkbox"
+                    checked={supporterForm.is_gold_crystal}
+                    onChange={(e) =>
+                      setSupporterForm({
+                        ...supporterForm,
+                        is_gold_crystal: e.target.checked,
+                        is_owner: e.target.checked ? false : supporterForm.is_owner,
+                      })
+                    }
+                    className="mt-0.5 w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  />
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-gold-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-gold-400" />
+                      Destaque Dourado Cristal Glass (Parceiro VIP)
+                    </span>
+                    <span className="block text-[11px] text-zinc-400 leading-snug">
+                      Aplica o efeito translúcido em estilo cristal glass na temática dourada do site.
                     </span>
                   </div>
                 </label>
