@@ -27,8 +27,11 @@ import {
   ChevronRight,
   GripVertical,
   ShoppingBag,
+  Clock,
+  Check,
+  X,
 } from 'lucide-react';
-import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration, HeroStat, SawCatalogItem } from '@/lib/types';
+import { VRChatEvent, GalleryImage, CommentItem, Supporter, EventRegistration, HeroStat, SawCatalogItem, PendingGalleryPost } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
 
 const TOKEN_KEY = 'lycoris_admin_token';
@@ -139,12 +142,14 @@ export default function AdminPage() {
   const [masterPasswordInput, setMasterPasswordInput] = useState('');
   const [masterAuthError, setMasterAuthError] = useState('');
   const [activeTab, setActiveTab] = useState<
-    'events' | 'registrations' | 'supporters' | 'gallery' | 'comments' | 'stats' | 'sawvr'
+    'events' | 'registrations' | 'supporters' | 'gallery' | 'comments' | 'stats' | 'sawvr' | 'submissions'
   >('events');
 
   // Estados de dados
   const [events, setEvents] = useState<VRChatEvent[]>(INITIAL_EVENTS);
   const [gallery, setGallery] = useState<GalleryImage[]>(INITIAL_GALLERY);
+  const [pendingPosts, setPendingPosts] = useState<PendingGalleryPost[]>([]);
+  const [processingPostId, setProcessingPostId] = useState<string | null>(null);
   const [allComments, setAllComments] = useState<CommentItem[]>([]);
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
   const [supporters, setSupporters] = useState<Supporter[]>([]);
@@ -387,7 +392,7 @@ export default function AdminPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [resEv, resGal, resComm, resReg, resSup, resStats, resMod, resSaw] = await Promise.all([
+      const [resEv, resGal, resComm, resReg, resSup, resStats, resMod, resSaw, resSub] = await Promise.all([
         api('/api/events'),
         api('/api/gallery?includeHidden=true'),
         api('/api/comments'),
@@ -396,6 +401,7 @@ export default function AdminPage() {
         api('/api/stats'),
         api('/api/moderation'),
         api('/api/sawvr'),
+        api('/api/gallery/submissions'),
       ]);
 
       if (resReg.status === 401) {
@@ -416,11 +422,60 @@ export default function AdminPage() {
         const saw = await resSaw.json();
         if (Array.isArray(saw)) setSawCatalog(saw);
       }
+      if (resSub.ok) {
+        const sub = await resSub.json();
+        if (Array.isArray(sub)) setPendingPosts(sub);
+      }
       if (resEv.ok) setEvents(await resEv.json());
       if (resGal.ok) setGallery(await resGal.json());
       if (resComm.ok) setAllComments(await resComm.json());
     } catch (err) {
       console.warn('Erro ao atualizar dados do painel:', err);
+    }
+  };
+
+  // Aprovar ou Recusar Post da Comunidade (Nível 2 de Administração)
+  const handleApproveCommunityPost = async (id: string) => {
+    setProcessingPostId(id);
+    try {
+      const res = await api('/api/gallery/submissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setPendingPosts((prev) => prev.filter((p) => p.id !== id));
+        fetchDashboardData();
+        showToast('Post da comunidade aprovado e publicado na Galeria!');
+      } else {
+        showToast(data.error || 'Erro ao aprovar postagem');
+      }
+    } catch {
+      showToast('Erro de conexão ao aprovar postagem');
+    } finally {
+      setProcessingPostId(null);
+    }
+  };
+
+  const handleRejectCommunityPost = async (id: string) => {
+    if (!confirm('Deseja recusar e apagar este envio da comunidade?')) return;
+    setProcessingPostId(id);
+    try {
+      const res = await api('/api/gallery/submissions?id=' + encodeURIComponent(id), {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setPendingPosts((prev) => prev.filter((p) => p.id !== id));
+        showToast('Envio recusado e removido.');
+      } else {
+        showToast(data.error || 'Erro ao recusar postagem');
+      }
+    } catch {
+      showToast('Erro de conexão ao recusar postagem');
+    } finally {
+      setProcessingPostId(null);
     }
   };
 
@@ -1097,6 +1152,23 @@ export default function AdminPage() {
               >
                 <ShoppingBag className="w-4 h-4 text-gothic-gold" />
                 <span>Catálogo SawVR ({sawCatalog.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('submissions')}
+                className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'submissions'
+                    ? 'border-lycoris-500 text-lycoris-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Clock className="w-4 h-4 text-lycoris-400" />
+                <span>Posts da Comunidade ({pendingPosts.length})</span>
+                {pendingPosts.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-lycoris-600 text-white text-[10px] font-bold">
+                    {pendingPosts.length}
+                  </span>
+                )}
               </button>
 
               <button
@@ -2451,6 +2523,117 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* ABA: POSTS DA COMUNIDADE PENDENTES DE APROVAÇÃO (NÍVEL 2) */}
+        {/* ============================================================== */}
+        {activeTab === 'submissions' && isMasterUnlocked && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-2xl bg-zinc-950/85 border border-lycoris-900/50 backdrop-blur-md">
+              <div>
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-lycoris-400" />
+                  Fila de Aprovação — Posts da Comunidade ({pendingPosts.length})
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Fotos enviadas pelos membros na página /galeria. Analise cada captura e clique em Aprovar para publicá-la na galeria oficial ou Recusar para descartá-la.
+                </p>
+              </div>
+              <Link
+                href="/galeria#enviar-foto"
+                target="_blank"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 font-semibold self-start sm:self-center shrink-0"
+              >
+                <span>Ver Formulário Público</span>
+                <ExternalLink className="w-3.5 h-3.5 text-lycoris-400" />
+              </Link>
+            </div>
+
+            {pendingPosts.length === 0 ? (
+              <div className="p-12 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center space-y-2">
+                <CheckCircle2 className="w-9 h-9 text-emerald-400/70 mx-auto" />
+                <h3 className="font-serif text-base font-bold text-white">
+                  Nenhum post pendente de análise
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Todos os envios da comunidade já foram avaliados.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pendingPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="rounded-2xl bg-zinc-950/90 border border-zinc-800/90 overflow-hidden flex flex-col justify-between shadow-xl backdrop-blur-md"
+                  >
+                    <div>
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block relative aspect-[4/3] bg-black overflow-hidden group"
+                        title="Clique para abrir a imagem em tamanho original"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={post.url}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
+                          Aguardando Aprovação
+                        </span>
+                      </a>
+
+                      <div className="p-4 space-y-2">
+                        <h3 className="font-serif text-base font-bold text-white leading-snug">
+                          {post.title}
+                        </h3>
+                        <div className="text-xs text-zinc-400 space-y-1">
+                          <div>
+                            Enviado por:{' '}
+                            <strong className="text-zinc-200">{post.author}</strong>
+                          </div>
+                          <div>
+                            Mundo:{' '}
+                            <span className="text-lycoris-300">
+                              {post.vrchat_world || 'Lycoris Garden Sanctuary'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-zinc-500">
+                            Data: {new Date(post.created_at).toLocaleString('pt-BR')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 pt-0 flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        disabled={processingPostId === post.id}
+                        onClick={() => handleApproveCommunityPost(post.id)}
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Aprovar e Publicar</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={processingPostId === post.id}
+                        onClick={() => handleRejectCommunityPost(post.id)}
+                        className="py-2.5 px-3.5 rounded-xl bg-red-950/70 hover:bg-red-900 disabled:opacity-40 border border-red-800 text-red-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Recusar</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, MessageSquare, Heart, X, Send, User } from 'lucide-react';
+import Link from 'next/link';
+import { Camera, MessageSquare, Heart, X, Send, User, ArrowRight, Upload } from 'lucide-react';
 import { GalleryImage, CommentItem } from '@/lib/types';
 import {
   MAX_COMMENT_LENGTH,
@@ -11,7 +12,15 @@ import {
   validateCommentInput,
 } from '@/lib/moderation';
 
-export default function GallerySection() {
+export default function GallerySection({
+  limit = 6,
+  showHeader = true,
+  showViewAllButton = true,
+}: {
+  limit?: number;
+  showHeader?: boolean;
+  showViewAllButton?: boolean;
+}) {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState<GalleryImage | null>(null);
@@ -189,41 +198,45 @@ export default function GallerySection() {
     }
   };
 
+  const displayedImages = typeof limit === 'number' && limit > 0 ? images.slice(0, limit) : images;
+
   return (
     <section id="galeria" className="relative py-16 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto z-10">
-      <div className="text-center space-y-4 mb-10 sm:mb-16">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950/70 border border-lycoris-800/40 text-lycoris-400 text-xs font-semibold uppercase tracking-widest">
-          <Camera className="w-3.5 h-3.5 text-lycoris-500" />
-          Registros e Memórias
+      {showHeader && (
+        <div className="text-center space-y-4 mb-10 sm:mb-16">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lycoris-950/70 border border-lycoris-800/40 text-lycoris-400 text-xs font-semibold uppercase tracking-widest">
+            <Camera className="w-3.5 h-3.5 text-lycoris-500" />
+            Registros e Memórias
+          </div>
+          <h2 className="font-serif text-3xl sm:text-5xl font-bold text-white tracking-tight">
+            Galeria <span className="text-lycoris-500">Comunitária</span>
+          </h2>
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-lycoris-600" />
+            <div className="w-2 h-2 rotate-45 bg-lycoris-500 shadow-lycoris-glow" />
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-lycoris-600" />
+          </div>
+          <p className="font-sans text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+            Momentos capturados por nossos fotógrafos e membros. Clique em qualquer imagem para abrir em alta resolução e deixar sua mensagem.
+          </p>
         </div>
-        <h2 className="font-serif text-3xl sm:text-5xl font-bold text-white tracking-tight">
-          Galeria <span className="text-lycoris-500">Comunitária</span>
-        </h2>
-        <div className="flex items-center justify-center gap-3">
-          <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-lycoris-600" />
-          <div className="w-2 h-2 rotate-45 bg-lycoris-500 shadow-lycoris-glow" />
-          <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-lycoris-600" />
-        </div>
-        <p className="font-sans text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-          Momentos capturados por nossos fotógrafos e membros. Clique em qualquer imagem para abrir em alta resolução e deixar sua mensagem.
-        </p>
-      </div>
+      )}
 
       {loading ? (
         <div className="text-center py-16 text-xs text-zinc-500 animate-pulse">
           Carregando memórias do santuário...
         </div>
-      ) : images.length === 0 ? (
+      ) : displayedImages.length === 0 ? (
         <div className="text-center py-16 px-6 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 max-w-lg mx-auto backdrop-blur-sm">
           <Camera className="w-10 h-10 text-lycoris-500/60 mx-auto mb-3" />
           <h3 className="font-serif text-lg font-bold text-white">Nenhuma foto publicada no momento</h3>
           <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-            As capturas adicionadas pelo painel administrativo aparecerão aqui.
+            As capturas adicionadas pelo painel administrativo ou enviadas pela comunidade aparecerão aqui.
           </p>
         </div>
       ) : (
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
-          {images.map((img) => (
+          {displayedImages.map((img) => (
             <div
               key={img.id}
               onClick={() => openLightbox(img)}
@@ -267,6 +280,29 @@ export default function GallerySection() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showViewAllButton && (
+        <div className="mt-10 sm:mt-14 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          <Link
+            href="/galeria"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white font-semibold text-xs sm:text-sm shadow-lycoris-glow hover:shadow-lycoris-glow-lg transition-all duration-300 hover:-translate-y-0.5 border border-lycoris-400/40"
+          >
+            <Camera className="w-4 h-4 text-lycoris-200" />
+            <span>
+              Ver Galeria Completa{images.length > 6 ? ` (${images.length} fotos)` : ''}
+            </span>
+            <ArrowRight className="w-4 h-4 text-lycoris-200" />
+          </Link>
+
+          <Link
+            href="/galeria#enviar-foto"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-zinc-900/85 hover:bg-zinc-800 text-zinc-200 hover:text-white font-semibold text-xs sm:text-sm border border-zinc-700/70 hover:border-lycoris-600/60 backdrop-blur-sm transition-all duration-300"
+          >
+            <Upload className="w-4 h-4 text-lycoris-400" />
+            <span>Enviar Foto da Comunidade</span>
+          </Link>
         </div>
       )}
 

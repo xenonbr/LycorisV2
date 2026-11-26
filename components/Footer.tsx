@@ -47,7 +47,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#galeria" className="hover:text-lycoris-400 transition-colors">
+                <Link href="/galeria" className="hover:text-lycoris-400 transition-colors">
                   Galeria Comunitária
                 </Link>
               </li>

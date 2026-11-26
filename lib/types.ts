@@ -76,3 +76,13 @@ export interface SawCatalogItem {
   featured?: boolean;
   created_at: string;
 }
+
+export interface PendingGalleryPost {
+  id: string;
+  title: string;
+  url: string;
+  storage_path?: string;
+  author: string;
+  vrchat_world: string;
+  created_at: string;
+}

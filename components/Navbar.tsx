@@ -61,7 +61,7 @@ export default function Navbar() {
             Eventos
           </Link>
           <Link
-            href="/#galeria"
+            href="/galeria"
             className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
           >
             <ImageIcon className="w-4 h-4 text-lycoris-500" />
@@ -131,7 +131,7 @@ export default function Navbar() {
             <span>Eventos</span>
           </Link>
           <Link
-            href="/#galeria"
+            href="/galeria"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
