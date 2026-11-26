@@ -8,6 +8,8 @@ export interface VRChatEvent {
   world_url?: string;
   image_url?: string;
   category?: string;
+  is_external?: boolean;
+  external_platform?: string;
   created_at?: string;
   updated_at?: string;
 }

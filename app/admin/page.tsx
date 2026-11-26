@@ -68,12 +68,30 @@ const EMPTY_EVENT = {
   title: '',
   description: '',
   date: '',
-  time: '21:30 BRT',
+  time: '21:30',
   vrchat_world: '',
   world_url: '',
   image_url: '',
   category: 'Encontro Oficial',
+  is_external: false,
+  external_platform: 'TikTok Live',
 };
+
+function extractHHMM(rawTime?: string): string {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)/.exec(String(rawTime || '').trim());
+  return match ? `${match[1]}:${match[2]}` : '21:30';
+}
+
+function isValidCalendarDate(dateStr?: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || '').trim());
+  if (!match) return false;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  if (y < 2024 || y > 2035 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
 
 const EMPTY_SAW_ITEM = {
   title: '',
@@ -745,12 +763,34 @@ export default function AdminPage() {
   // Criar ou Atualizar Evento
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isValidCalendarDate(eventForm.date)) {
+      showToast('Data inválida! Escolha uma data válida entre 2024 e 2035.');
+      return;
+    }
+
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(eventForm.time.trim())) {
+      showToast('Horário inválido! Informe um horário válido entre 00:00 e 23:59.');
+      return;
+    }
+
     const editing = editingEventId;
+    const payload = {
+      ...eventForm,
+      time: `${eventForm.time.trim()} BRT`,
+      vrchat_world: eventForm.is_external
+        ? `${eventForm.external_platform}: ${eventForm.vrchat_world.trim()}`.replace(
+            new RegExp(`^${eventForm.external_platform}:\\s*${eventForm.external_platform}:\\s*`, 'i'),
+            `${eventForm.external_platform}: `
+          )
+        : eventForm.vrchat_world.trim(),
+    };
+
     try {
       const res = await api('/api/events', {
         method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editing ? { ...eventForm, id: editing } : eventForm),
+        body: JSON.stringify(editing ? { ...payload, id: editing } : payload),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -777,16 +817,26 @@ export default function AdminPage() {
   const handleEditEvent = (ev: VRChatEvent) => {
     setEditingEventId(ev.id);
     setEventCompressionStats(null);
+    const isExt = Boolean(ev.is_external);
+    const platform = ev.external_platform || 'TikTok Live';
+    const rawWorld = ev.vrchat_world || '';
+    const cleanedWorld =
+      isExt && rawWorld.toLowerCase().startsWith(`${platform.toLowerCase()}:`)
+        ? rawWorld.slice(platform.length + 1).trim()
+        : rawWorld;
+
     setEventForm({
       title: ev.title || '',
       description: ev.description || '',
-      date: ev.date || '',
-      time: ev.time || '21:30 BRT',
-      vrchat_world: ev.vrchat_world || '',
+      date: isValidCalendarDate(ev.date) ? ev.date : '',
+      time: extractHHMM(ev.time),
+      vrchat_world: cleanedWorld,
       world_url: ev.world_url || '',
       image_url:
         ev.image_url && ev.image_url !== '/images/banner.jpg' ? ev.image_url : '',
-      category: ev.category || 'Encontro Oficial',
+      category: ev.category || (isExt ? 'Live / Sorteio' : 'Encontro Oficial'),
+      is_external: isExt,
+      external_platform: platform,
     });
   };
 
@@ -1193,12 +1243,68 @@ export default function AdminPage() {
               </h2>
 
               <form onSubmit={handleCreateEvent} className="space-y-3">
+                {/* Seletor de Modalidade: No VRChat vs Fora do VRChat (Live / Sorteio / Externo) */}
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1.5">
+                    Onde acontecerá o evento?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEventForm((prev) => ({
+                          ...prev,
+                          is_external: false,
+                          category:
+                            prev.category === 'Live / Sorteio'
+                              ? 'Encontro Oficial'
+                              : prev.category,
+                        }))
+                      }
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center gap-1.5 ${
+                        !eventForm.is_external
+                          ? 'bg-lycoris-600/20 border-lycoris-500 text-lycoris-200 shadow-lycoris-glow'
+                          : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <span>No VRChat (Instância)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEventForm((prev) => ({
+                          ...prev,
+                          is_external: true,
+                          category:
+                            prev.category === 'Encontro Oficial'
+                              ? 'Live / Sorteio'
+                              : prev.category,
+                        }))
+                      }
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center justify-center gap-1.5 ${
+                        eventForm.is_external
+                          ? 'bg-gothic-gold/15 border-gothic-gold text-gothic-gold shadow-gold-glow'
+                          : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <Radio className="w-3.5 h-3.5" />
+                      <span>Fora do VRChat (Live/Sorteio)</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Título do Evento</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Noite de Chá Sob as Pétalas"
+                    maxLength={100}
+                    placeholder={
+                      eventForm.is_external
+                        ? 'Ex: Sorteio de Full Body Tracking ao Vivo'
+                        : 'Ex: Noite de Chá Sob as Pétalas'
+                    }
                     value={eventForm.title}
                     onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
@@ -1207,19 +1313,30 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Data</label>
+                    <label className="block text-xs text-zinc-400 mb-1">
+                      Data (2024 – 2035)
+                    </label>
                     <input
                       type="date"
                       required
+                      min="2024-01-01"
+                      max="2035-12-31"
                       value={eventForm.date}
-                      onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Bloqueia anos com mais de 4 dígitos digitados no teclado
+                        if (val && val.split('-')[0]?.length > 4) return;
+                        setEventForm({ ...eventForm, date: val });
+                      }}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Horário</label>
+                    <label className="block text-xs text-zinc-400 mb-1">
+                      Horário (BRT)
+                    </label>
                     <input
-                      type="text"
+                      type="time"
                       required
                       value={eventForm.time}
                       onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })}
@@ -1228,28 +1345,97 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Mundo no VRChat</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Crimson Moon Shrine"
-                    value={eventForm.vrchat_world}
-                    onChange={(e) => setEventForm({ ...eventForm, vrchat_world: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
-                  />
-                </div>
+                {eventForm.is_external ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Plataforma / Canal
+                        </label>
+                        <select
+                          value={eventForm.external_platform}
+                          onChange={(e) =>
+                            setEventForm({ ...eventForm, external_platform: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                        >
+                          <option value="TikTok Live">TikTok Live</option>
+                          <option value="Twitch Live">Twitch Live</option>
+                          <option value="YouTube Live">YouTube Live</option>
+                          <option value="Discord">Discord da Comunidade</option>
+                          <option value="Instagram Live">Instagram Live</option>
+                          <option value="Evento Externo">Outra Plataforma</option>
+                        </select>
+                      </div>
 
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Link do Mundo (URL)</label>
-                  <input
-                    type="url"
-                    placeholder="https://vrchat.com/home/world/wrld_..."
-                    value={eventForm.world_url}
-                    onChange={(e) => setEventForm({ ...eventForm, world_url: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
-                  />
-                </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Perfil / Local da Transmissão
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={80}
+                          placeholder="Ex: @lupratuvr no TikTok"
+                          value={eventForm.vrchat_world}
+                          onChange={(e) =>
+                            setEventForm({ ...eventForm, vrchat_world: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Link da Live / Transmissão (URL)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://www.tiktok.com/@..."
+                        value={eventForm.world_url}
+                        onChange={(e) =>
+                          setEventForm({ ...eventForm, world_url: e.target.value })
+                        }
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Mundo no VRChat
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={80}
+                        placeholder="Ex: Crimson Moon Shrine"
+                        value={eventForm.vrchat_world}
+                        onChange={(e) =>
+                          setEventForm({ ...eventForm, vrchat_world: e.target.value })
+                        }
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Link do Mundo (URL)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://vrchat.com/home/world/wrld_..."
+                        value={eventForm.world_url}
+                        onChange={(e) =>
+                          setEventForm({ ...eventForm, world_url: e.target.value })
+                        }
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Categoria / Tag</label>
@@ -1259,6 +1445,8 @@ export default function AdminPage() {
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
                   >
                     <option value="Encontro Oficial">Encontro Oficial</option>
+                    <option value="Live / Sorteio">Live / Sorteio</option>
+                    <option value="Sorteio Especial">Sorteio Especial</option>
                     <option value="Fotografia">Fotografia</option>
                     <option value="Música Noturna">Música Noturna</option>
                     <option value="Roleplay / Imersão">Roleplay / Imersão</option>
@@ -1387,6 +1575,11 @@ export default function AdminPage() {
                           <span className="text-[10px] px-2 py-0.5 rounded bg-lycoris-950 border border-lycoris-800 text-lycoris-300">
                             {ev.category}
                           </span>
+                          {ev.is_external && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 border border-gothic-gold/50 text-gothic-gold font-semibold">
+                              {ev.external_platform || 'Fora do VRChat'}
+                            </span>
+                          )}
                           {hasBg && (
                             <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
                               Com fundo

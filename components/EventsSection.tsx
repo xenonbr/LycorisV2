@@ -1,8 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, ExternalLink, Copy, Check, UserPlus, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, ExternalLink, Copy, Check, UserPlus, X, Radio } from 'lucide-react';
 import { VRChatEvent } from '@/lib/types';
+
+function formatEventDatePtBr(dateStr: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || '').trim());
+  if (!m) return dateStr;
+  const year = Number(m[1]);
+  if (year < 2024 || year > 2035) return dateStr;
+  return new Date(`${m[1]}-${m[2]}-${m[3]}T12:00:00`).toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
 
 export default function EventsSection() {
   const [events, setEvents] = useState<VRChatEvent[]>([]);
@@ -115,6 +128,7 @@ export default function EventsSection() {
             const hasBgImage = Boolean(
               event.image_url && event.image_url.trim() && event.image_url !== '/images/banner.jpg'
             );
+            const isExternal = Boolean(event.is_external);
             return (
             <article
               key={event.id}
@@ -135,10 +149,18 @@ export default function EventsSection() {
               )}
 
               <div className="relative z-10 space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-lycoris-950/90 border border-lycoris-800/60 text-lycoris-300 backdrop-blur-sm">
-                    {event.category || 'Encontro Oficial'}
-                  </span>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-lycoris-950/90 border border-lycoris-800/60 text-lycoris-300 backdrop-blur-sm">
+                      {event.category || 'Encontro Oficial'}
+                    </span>
+                    {isExternal && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-950/85 border border-gothic-gold/50 text-gothic-gold backdrop-blur-sm">
+                        <Radio className="w-3 h-3 text-gothic-gold animate-pulse" />
+                        <span>{event.external_platform || 'Evento Externo'}</span>
+                      </span>
+                    )}
+                  </div>
                   <span className="flex items-center gap-1.5 text-xs text-gothic-gold font-medium">
                     <Clock className="w-3.5 h-3.5" />
                     {event.time}
@@ -152,10 +174,14 @@ export default function EventsSection() {
                 <div className="space-y-2 text-xs sm:text-sm text-zinc-300 pt-1">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-lycoris-500 shrink-0" />
-                    <span>{new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    <span>{formatEventDatePtBr(event.date)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-zinc-200">
-                    <MapPin className="w-4 h-4 text-lycoris-500 shrink-0" />
+                    {isExternal ? (
+                      <Radio className="w-4 h-4 text-gothic-gold shrink-0" />
+                    ) : (
+                      <MapPin className="w-4 h-4 text-lycoris-500 shrink-0" />
+                    )}
                     <span className="font-medium text-white">{event.vrchat_world}</span>
                   </div>
                 </div>
@@ -182,13 +208,17 @@ export default function EventsSection() {
                       rel="noopener noreferrer"
                       className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-lycoris-700/80 hover:bg-lycoris-600 text-white text-xs font-semibold shadow-sm transition-all duration-200"
                     >
-                      <span>Lançar Mundo</span>
+                      <span>
+                        {isExternal
+                          ? `Acessar ${event.external_platform || 'Transmissão'}`
+                          : 'Lançar Mundo'}
+                      </span>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
 
                     <button
                       onClick={() => handleCopyLink(event.world_url || '', event.id)}
-                      title="Copiar link da instância"
+                      title={isExternal ? 'Copiar link da transmissão' : 'Copiar link da instância'}
                       className="p-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
                     >
                       {copiedId === event.id ? (
@@ -200,7 +230,9 @@ export default function EventsSection() {
                   </>
                 ) : (
                   <div className="w-full text-center text-xs text-zinc-500 italic py-2">
-                    Link da instância liberado 30min antes
+                    {isExternal
+                      ? 'Link da transmissão será divulgado antes do início'
+                      : 'Link da instância liberado 30min antes'}
                   </div>
                 )}
                 </div>
@@ -238,7 +270,7 @@ export default function EventsSection() {
                 </div>
                 <h3 className="font-serif text-xl font-bold text-white">Inscrição confirmada!</h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Nos vemos em <strong className="text-white">{regEvent.vrchat_world}</strong>, {regEvent.title}. Fique de olho no seu VRChat para o convite.
+                  Nos vemos em <strong className="text-white">{regEvent.vrchat_world}</strong> ({regEvent.title}).
                 </p>
                 <button
                   onClick={closeRegistration}
@@ -269,13 +301,21 @@ export default function EventsSection() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Usuário no VRChat</label>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    {regEvent.is_external
+                      ? 'Seu usuário (VRChat / Discord / Rede Social)'
+                      : 'Usuário no VRChat'}
+                  </label>
                   <input
                     required
                     maxLength={100}
                     value={regForm.username}
                     onChange={(e) => setRegForm({ ...regForm, username: e.target.value })}
-                    placeholder="Seu nick exato no VRChat"
+                    placeholder={
+                      regEvent.is_external
+                        ? 'Ex: @seunick no TikTok / Discord / VRChat'
+                        : 'Seu nick exato no VRChat'
+                    }
                     className="w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-base sm:text-sm focus:outline-none focus:border-lycoris-500"
                   />
                 </div>
