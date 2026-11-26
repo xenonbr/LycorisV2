@@ -32,13 +32,22 @@ import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockD
 import LycorisParticles from '@/components/LycorisParticles';
 
 const TOKEN_KEY = 'lycoris_admin_token';
+const MASTER_TOKEN_KEY = 'lycoris_master_admin_token';
 
-// fetch autenticado com o token de administrador
+// fetch autenticado com o token de administrador (+ token do adm principal quando desbloqueado)
 function api(url: string, init: RequestInit = {}) {
   const token = sessionStorage.getItem(TOKEN_KEY) || '';
+  const masterToken = sessionStorage.getItem(MASTER_TOKEN_KEY) || '';
+  const headers: Record<string, string> = {
+    ...((init.headers as Record<string, string>) || {}),
+    Authorization: `Bearer ${token}`,
+  };
+  if (masterToken) {
+    headers['x-master-token'] = masterToken;
+  }
   return fetch(url, {
     ...init,
-    headers: { ...(init.headers || {}), Authorization: `Bearer ${token}` },
+    headers,
   });
 }
 
@@ -112,6 +121,9 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
+  const [isMasterUnlocked, setIsMasterUnlocked] = useState(false);
+  const [masterPasswordInput, setMasterPasswordInput] = useState('');
+  const [masterAuthError, setMasterAuthError] = useState('');
   const [activeTab, setActiveTab] = useState<
     'events' | 'registrations' | 'supporters' | 'gallery' | 'comments' | 'stats'
   >('events');
@@ -249,6 +261,9 @@ export default function AdminPage() {
   useEffect(() => {
     if (sessionStorage.getItem(TOKEN_KEY)) {
       setIsAuthenticated(true);
+      if (sessionStorage.getItem(MASTER_TOKEN_KEY)) {
+        setIsMasterUnlocked(true);
+      }
       fetchDashboardData();
     }
   }, []);
@@ -270,8 +285,12 @@ export default function AdminPage() {
       });
 
       if (res.ok) {
-        const { token } = await res.json();
+        const { token, masterToken } = await res.json();
         sessionStorage.setItem(TOKEN_KEY, token);
+        if (masterToken) {
+          sessionStorage.setItem(MASTER_TOKEN_KEY, masterToken);
+          setIsMasterUnlocked(true);
+        }
         setIsAuthenticated(true);
         fetchDashboardData();
       } else {
@@ -284,8 +303,34 @@ export default function AdminPage() {
 
   const handleLogout = () => {
     sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(MASTER_TOKEN_KEY);
     setIsAuthenticated(false);
+    setIsMasterUnlocked(false);
     setPasswordInput('');
+    setMasterPasswordInput('');
+  };
+
+  const handleMasterUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMasterAuthError('');
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: masterPasswordInput, mode: 'master' }),
+      });
+      if (res.ok) {
+        const { masterToken } = await res.json();
+        sessionStorage.setItem(MASTER_TOKEN_KEY, masterToken);
+        setIsMasterUnlocked(true);
+        setMasterPasswordInput('');
+        showToast('Acesso de Administrador Principal desbloqueado!');
+      } else {
+        setMasterAuthError('Senha do Administrador Principal incorreta.');
+      }
+    } catch {
+      setMasterAuthError('Erro ao verificar senha.');
+    }
   };
 
   const fetchDashboardData = async () => {
@@ -864,6 +909,7 @@ export default function AdminPage() {
           >
             <HeartHandshake className="w-4 h-4" />
             <span>Apoiadores ({supporters.length})</span>
+            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
           </button>
 
           <button
@@ -876,11 +922,12 @@ export default function AdminPage() {
           >
             <Sparkles className="w-4 h-4" />
             <span>Destaques do Topo ({heroStats.length})</span>
+            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
           </button>
 
           <button
             onClick={() => setActiveTab('comments')}
-            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors ${
+            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'comments'
                 ? 'border-lycoris-500 text-lycoris-400'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -888,8 +935,64 @@ export default function AdminPage() {
           >
             <MessageSquare className="w-4 h-4" />
             <span>Moderação de Mensagens ({allComments.length})</span>
+            {!isMasterUnlocked && <Lock className="w-3.5 h-3.5 text-amber-400/80" />}
           </button>
         </div>
+
+        {/* Bloqueio de Segundo Nível para Abas Restritas ao Administrador Principal */}
+        {(activeTab === 'supporters' || activeTab === 'stats' || activeTab === 'comments') &&
+          !isMasterUnlocked && (
+            <div className="max-w-md mx-auto my-10 p-8 rounded-2xl bg-zinc-950/90 border border-lycoris-800/60 shadow-lycoris-glow backdrop-blur-md space-y-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-lycoris-950 border border-lycoris-700 mx-auto flex items-center justify-center text-lycoris-400">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase tracking-widest text-gothic-gold font-bold">
+                  Nível de Segurança 2
+                </span>
+                <h2 className="font-serif text-xl font-bold text-white">
+                  Acesso Restrito ao <span className="text-lycoris-500">Admin Principal</span>
+                </h2>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  As abas <strong>Apoiadores</strong>, <strong>Destaques do Topo</strong> e{' '}
+                  <strong>Moderação de Mensagens</strong> exigem a senha do Administrador Principal para visualização e edição.
+                </p>
+              </div>
+
+              <form onSubmit={handleMasterUnlock} className="space-y-3 text-left">
+                <div>
+                  <label className="block text-xs text-zinc-300 font-semibold mb-1.5">
+                    Senha do Administrador Principal
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      required
+                      placeholder="Digite a segunda senha..."
+                      value={masterPasswordInput}
+                      onChange={(e) => setMasterPasswordInput(e.target.value)}
+                      className="w-full px-4 py-2.5 text-sm rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-lycoris-500"
+                    />
+                    <Lock className="w-4 h-4 text-zinc-500 absolute right-3.5 top-3" />
+                  </div>
+                </div>
+
+                {masterAuthError && (
+                  <div className="p-2.5 rounded-lg bg-red-950/60 border border-red-800 text-xs text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{masterAuthError}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
+                >
+                  Desbloquear Abas Principais
+                </button>
+              </form>
+            </div>
+          )}
 
         {/* ============================================================== */}
         {/* ABA 1: EVENTOS */}
@@ -1437,7 +1540,7 @@ export default function AdminPage() {
         )}
 
         {/* ABA: APOIADORES */}
-        {activeTab === 'supporters' && (
+        {activeTab === 'supporters' && isMasterUnlocked && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
               <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
@@ -1576,7 +1679,7 @@ export default function AdminPage() {
         )}
 
         {/* ABA: DESTAQUES DO TOPO (CAIXAS DO BANNER) */}
-        {activeTab === 'stats' && (
+        {activeTab === 'stats' && isMasterUnlocked && (
           <div className="space-y-6">
             <div>
               <h2 className="font-serif text-lg font-bold text-white">
@@ -1678,7 +1781,7 @@ export default function AdminPage() {
         {/* ============================================================== */}
         {/* ABA 3: MODERAÇÃO DE COMENTÁRIOS */}
         {/* ============================================================== */}
-        {activeTab === 'comments' && (
+        {activeTab === 'comments' && isMasterUnlocked && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
               <div>

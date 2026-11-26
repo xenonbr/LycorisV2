@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { INITIAL_SUPPORTERS } from '@/lib/mockData';
-import { isAdminRequest, unauthorized } from '@/lib/auth';
+import { isMasterAdminRequest, forbiddenMaster } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +34,7 @@ function isValidUrl(value: string) {
 }
 
 export async function POST(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!isMasterAdminRequest(request)) return forbiddenMaster();
   try {
     const body = await request.json();
     const name = String(body.name || '').trim();
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!isMasterAdminRequest(request)) return forbiddenMaster();
   try {
     const body = await request.json();
     if (!body.id) return NextResponse.json({ error: 'ID é obrigatório' }, { status: 400 });
@@ -100,7 +100,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!isMasterAdminRequest(request)) return forbiddenMaster();
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'ID é obrigatório' }, { status: 400 });
 

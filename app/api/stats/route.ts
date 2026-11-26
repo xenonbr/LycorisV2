@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { INITIAL_HERO_STATS } from '@/lib/mockData';
 import { HeroStat } from '@/lib/types';
-import { isAdminRequest, unauthorized } from '@/lib/auth';
+import { isMasterAdminRequest, forbiddenMaster } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +57,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!isMasterAdminRequest(request)) return forbiddenMaster();
 
   try {
     const body = await request.json();

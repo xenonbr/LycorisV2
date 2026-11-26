@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isAdminRequest, unauthorized } from '@/lib/auth';
+import { isMasterAdminRequest, forbiddenMaster } from '@/lib/auth';
 import { INITIAL_GALLERY } from '@/lib/mockData';
 import { validateCommentInput } from '@/lib/moderation';
 
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!isMasterAdminRequest(request)) return forbiddenMaster();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
