@@ -57,7 +57,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/sawvr" className="text-gothic-gold hover:text-amber-300 transition-colors font-medium">
+                <Link href="/sawvr" className="hover:text-lycoris-400 transition-colors">
                   Catálogo SawVR
                 </Link>
               </li>

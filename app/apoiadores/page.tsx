@@ -283,7 +283,7 @@ export default function ApoiadoresPage() {
                           : 'text-gothic-gold hover:text-white'
                       }`}
                     >
-                      <span>Conhecer Projeto</span>
+                      <span>Conheça</span>
                       <ExternalLink className="w-4 h-4" />
                     </a>
 
