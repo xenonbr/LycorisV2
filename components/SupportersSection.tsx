@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Sparkles, Award, Crown } from 'lucide-react';
+import Link from 'next/link';
+import { ExternalLink, Sparkles, Award, Crown, ArrowRight } from 'lucide-react';
 import { INITIAL_SUPPORTERS } from '@/lib/mockData';
 import { Supporter } from '@/lib/types';
 
@@ -159,6 +160,15 @@ export default function SupportersSection() {
           <p className="font-sans text-zinc-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
             Expressamos nossa sincera admiração aos criadores e projetos que apoiam as noites e o desenvolvimento contínuo da comunidade Lycoris Garden.
           </p>
+          <div className="pt-2">
+            <Link
+              href="/apoiadores"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-zinc-900/90 hover:bg-gothic-gold/15 border border-gothic-gold/35 hover:border-gothic-gold text-gothic-gold text-xs font-semibold transition-all shadow-sm"
+            >
+              <span>Ver Página Completa de Apoiadores ({supporters.length})</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
         {/* Carrossel Contínuo + Arrastável Manualmente */}

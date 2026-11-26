@@ -52,8 +52,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#apoiadores" className="hover:text-lycoris-400 transition-colors">
-                  Apoiadores
+                <Link href="/apoiadores" className="hover:text-lycoris-400 transition-colors">
+                  Parceiros &amp; Apoiadores
                 </Link>
               </li>
               <li>

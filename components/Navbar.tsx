@@ -67,11 +67,11 @@ export default function Navbar() {
             Galeria
           </Link>
           <Link
-            href="/#apoiadores"
+            href="/apoiadores"
             className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
           >
             <HeartHandshake className="w-4 h-4 text-gothic-gold" />
-            Apoiadores
+            Parceiros
           </Link>
           <Link
             href="/sawvr"
@@ -138,12 +138,12 @@ export default function Navbar() {
             <span>Galeria Comunitária</span>
           </Link>
           <Link
-            href="/#apoiadores"
+            href="/apoiadores"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
           >
             <HeartHandshake className="w-4 h-4 text-gothic-gold" />
-            <span>Apoiadores</span>
+            <span>Parceiros &amp; Apoiadores</span>
           </Link>
           <Link
             href="/sawvr"
