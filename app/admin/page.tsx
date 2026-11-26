@@ -737,13 +737,16 @@ export default function AdminPage() {
     ? registrations.filter((r) => r.event_id === regFilter)
     : registrations;
 
-  const eventTitle = (id: string) => events.find((e) => e.id === id)?.title || 'Evento removido';
+  const eventTitle = (id: string) => events.find((e) => e.id === id)?.title || 'Evento encerrado / removido';
 
-  const exportRegistrationsCsv = () => {
+  const exportRegistrationsCsv = (targetEventId?: string) => {
+    const list = targetEventId
+      ? registrations.filter((r) => r.event_id === targetEventId)
+      : filteredRegistrations;
     const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = [
-      ['Evento', 'Nome', 'Usuario VRChat', 'Observacoes', 'Inscrito em'],
-      ...filteredRegistrations.map((r) => [
+      ['Evento', 'Nome', 'Usuario', 'Observacoes', 'Inscrito em'],
+      ...list.map((r) => [
         eventTitle(r.event_id),
         r.name,
         r.username,
@@ -755,7 +758,15 @@ export default function AdminPage() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'inscricoes.csv';
+    const evObj = targetEventId ? events.find((e) => e.id === targetEventId) : null;
+    const slug = evObj
+      ? evObj.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/gi, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 35)
+      : 'todos';
+    a.download = `inscricoes-${slug || 'evento'}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1840,15 +1851,17 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ABA: INSCRIÇÕES */}
+        {/* ABA: INSCRIÇÕES AGRUPADAS POR EVENTO */}
         {activeTab === 'registrations' && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="font-serif text-lg font-bold text-white">
-                  Inscritos nos Eventos ({filteredRegistrations.length})
+                  Inscritos por Evento ({filteredRegistrations.length})
                 </h2>
-                <p className="text-xs text-zinc-400">Nome e usuário do VRChat de quem quer participar.</p>
+                <p className="text-xs text-zinc-400">
+                  Inscrições separadas em blocos para cada evento ativo ou encerrado, evitando misturar participantes de eventos simultâneos.
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <select
@@ -1856,64 +1869,197 @@ export default function AdminPage() {
                   onChange={(e) => setRegFilter(e.target.value)}
                   className="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
                 >
-                  <option value="">Todos os eventos</option>
-                  {events.map((ev) => (
-                    <option key={ev.id} value={ev.id}>
-                      {ev.title}
-                    </option>
-                  ))}
+                  <option value="">Todos os eventos ({registrations.length})</option>
+                  {events.map((ev) => {
+                    const count = registrations.filter((r) => r.event_id === ev.id).length;
+                    return (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.title} ({count})
+                      </option>
+                    );
+                  })}
                 </select>
                 <button
-                  onClick={exportRegistrationsCsv}
+                  onClick={() => exportRegistrationsCsv(regFilter || undefined)}
                   disabled={filteredRegistrations.length === 0}
-                  className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-1.5"
+                  className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  CSV
+                  <span>Exportar CSV</span>
                 </button>
               </div>
             </div>
 
-            {filteredRegistrations.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500 text-xs">Nenhuma inscrição até o momento.</div>
+            {filteredRegistrations.length === 0 && events.length === 0 ? (
+              <div className="p-10 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
+                Nenhuma inscrição ou evento ativo até o momento.
+              </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-zinc-800/80 bg-zinc-950/85 backdrop-blur-md">
-                <table className="w-full text-xs text-left">
-                  <thead className="text-zinc-400 border-b border-zinc-800">
-                    <tr>
-                      <th className="p-3 font-semibold">Evento</th>
-                      <th className="p-3 font-semibold">Nome</th>
-                      <th className="p-3 font-semibold">Usuário VRChat</th>
-                      <th className="p-3 font-semibold">Observações</th>
-                      <th className="p-3 font-semibold">Inscrito em</th>
-                      <th className="p-3" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRegistrations.map((r) => (
-                      <tr key={r.id} className="border-b border-zinc-900 last:border-0">
-                        <td className="p-3 text-zinc-300">{eventTitle(r.event_id)}</td>
-                        <td className="p-3 text-white font-medium">{r.name}</td>
-                        <td className="p-3 text-lycoris-400 font-semibold">{r.username}</td>
-                        <td className="p-3 text-zinc-400 max-w-[200px] truncate" title={r.notes || ''}>
-                          {r.notes || '—'}
-                        </td>
-                        <td className="p-3 text-zinc-500 whitespace-nowrap">
-                          {new Date(r.created_at).toLocaleString('pt-BR')}
-                        </td>
-                        <td className="p-3 text-right">
-                          <button
-                            onClick={() => handleDeleteRegistration(r.id)}
-                            title="Remover inscrição"
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/40 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-5">
+                {(() => {
+                  // Agrupa inscrições por event_id
+                  const groupedMap = new Map<string, EventRegistration[]>();
+
+                  // 1. Garante que todos os eventos ativos (ou o evento filtrado) apareçam na ordem
+                  events.forEach((ev) => {
+                    if (!regFilter || regFilter === ev.id) {
+                      groupedMap.set(ev.id, []);
+                    }
+                  });
+
+                  // 2. Distribui as inscrições nos seus respectivos eventos (incluindo eventos antigos/removidos)
+                  filteredRegistrations.forEach((reg) => {
+                    const key = reg.event_id || 'sem-evento';
+                    if (!groupedMap.has(key)) {
+                      groupedMap.set(key, []);
+                    }
+                    groupedMap.get(key)!.push(reg);
+                  });
+
+                  const groups = Array.from(groupedMap.entries()).filter(
+                    ([evId, list]) => list.length > 0 || events.some((e) => e.id === evId)
+                  );
+
+                  if (groups.length === 0) {
+                    return (
+                      <div className="p-10 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
+                        Nenhuma inscrição encontrada para o filtro selecionado.
+                      </div>
+                    );
+                  }
+
+                  return groups.map(([evId, evRegs]) => {
+                    const evObj = events.find((e) => e.id === evId);
+                    const hasBg = Boolean(
+                      evObj?.image_url && evObj.image_url !== '/images/banner.jpg'
+                    );
+
+                    return (
+                      <div
+                        key={evId}
+                        className="rounded-2xl bg-zinc-950/90 border border-zinc-800/90 overflow-hidden backdrop-blur-md shadow-xl"
+                      >
+                        {/* Cabeçalho do Evento */}
+                        <div className="relative overflow-hidden p-4 sm:px-5 bg-zinc-900/75 border-b border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          {hasBg && (
+                            <div className="pointer-events-none absolute inset-0 z-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={evObj!.image_url}
+                                alt=""
+                                className="w-full h-full object-cover scale-105 blur-[3px] opacity-30"
+                              />
+                              <div className="absolute inset-0 bg-zinc-950/70" />
+                            </div>
+                          )}
+
+                          <div className="relative z-10 space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Calendar className="w-4 h-4 text-lycoris-400 shrink-0" />
+                              <h3 className="font-serif font-bold text-sm sm:text-base text-white truncate">
+                                {evObj ? evObj.title : 'Evento Encerrado / Removido'}
+                              </h3>
+                              {evObj?.category && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-lycoris-950 border border-lycoris-800 text-lycoris-300 font-semibold">
+                                  {evObj.category}
+                                </span>
+                              )}
+                              {evObj?.is_external && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950/80 border border-gothic-gold/50 text-gothic-gold font-semibold">
+                                  {evObj.external_platform || 'Fora do VRChat'}
+                                </span>
+                              )}
+                              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-200 font-bold">
+                                {evRegs.length}{' '}
+                                {evRegs.length === 1 ? 'inscrito' : 'inscritos'}
+                              </span>
+                            </div>
+
+                            {evObj ? (
+                              <p className="text-[11px] text-zinc-400">
+                                {evObj.date} às {evObj.time} •{' '}
+                                <span className="text-zinc-300">{evObj.vrchat_world}</span>
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-zinc-500">ID do evento: {evId}</p>
+                            )}
+                          </div>
+
+                          {evRegs.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => exportRegistrationsCsv(evId)}
+                              className="relative z-10 px-3 py-1.5 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-semibold inline-flex items-center gap-1.5 self-start sm:self-center shrink-0 transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5 text-lycoris-400" />
+                              <span>CSV deste Evento</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Lista de Inscritos deste Evento */}
+                        {evRegs.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-zinc-500 italic">
+                            Nenhum participante inscrito neste evento ainda.
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                              <thead className="text-zinc-400 bg-zinc-950/50 border-b border-zinc-800/80">
+                                <tr>
+                                  <th className="p-3 sm:px-5 font-semibold w-10">#</th>
+                                  <th className="p-3 font-semibold">Nome</th>
+                                  <th className="p-3 font-semibold">
+                                    {evObj?.is_external
+                                      ? 'Usuário (Rede / VRChat)'
+                                      : 'Usuário VRChat'}
+                                  </th>
+                                  <th className="p-3 font-semibold">Observações</th>
+                                  <th className="p-3 font-semibold">Inscrito em</th>
+                                  <th className="p-3 sm:px-5 text-right font-semibold">Ação</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-900">
+                                {evRegs.map((r, idx) => (
+                                  <tr
+                                    key={r.id}
+                                    className="hover:bg-zinc-900/40 transition-colors"
+                                  >
+                                    <td className="p-3 sm:px-5 text-zinc-500 font-mono">
+                                      {idx + 1}
+                                    </td>
+                                    <td className="p-3 text-white font-medium">{r.name}</td>
+                                    <td className="p-3 text-lycoris-400 font-semibold">
+                                      {r.username}
+                                    </td>
+                                    <td
+                                      className="p-3 text-zinc-400 max-w-[260px] truncate"
+                                      title={r.notes || ''}
+                                    >
+                                      {r.notes || '—'}
+                                    </td>
+                                    <td className="p-3 text-zinc-500 whitespace-nowrap">
+                                      {new Date(r.created_at).toLocaleString('pt-BR')}
+                                    </td>
+                                    <td className="p-3 sm:px-5 text-right">
+                                      <button
+                                        onClick={() => handleDeleteRegistration(r.id)}
+                                        title="Remover inscrição"
+                                        className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
