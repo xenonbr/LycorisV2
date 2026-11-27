@@ -8,9 +8,9 @@ export default function InitialPageLoader({
 }: {
   children: React.ReactNode;
 }) {
-  // 'dark': tela 100% preta apenas com pétalas caindo
-  // 'revealing': fade-in suave e sutil dos conteúdos
-  // 'done': animação concluída
+  // 'dark': tela preta com as pétalas caindo + Flor Lycoris centralizada com glow e título "Lycoris Garden"
+  // 'revealing': a flor central e a cortina preta se dissipam suavemente e o conteúdo da página surge em cascata de cima para baixo
+  // 'done': animação concluída e pétalas ao fundo com leve desfoque (~5%)
   const [phase, setPhase] = useState<'dark' | 'revealing' | 'done'>('dark');
 
   useEffect(() => {
@@ -23,8 +23,6 @@ export default function InitialPageLoader({
       return;
     }
 
-    // Se já carregou nesta sessão de navegação (ex: indo para /apoiadores ou /sawvr),
-    // faz uma transição mais rápida para não atrasar cliques internos
     let alreadyVisited = false;
     try {
       alreadyVisited = sessionStorage.getItem('lycoris_intro_seen') === '1';
@@ -33,7 +31,7 @@ export default function InitialPageLoader({
       // ignora bloqueios de storage
     }
 
-    const darkHoldMs = alreadyVisited ? 300 : 1050;
+    const darkHoldMs = alreadyVisited ? 550 : 1450;
     const revealDurationMs = alreadyVisited ? 1300 : 2350;
 
     const revealTimer = window.setTimeout(() => {
@@ -53,8 +51,8 @@ export default function InitialPageLoader({
   return (
     <>
       {/* Camada Global de Pétalas de Lycoris:
-          Fica nítida e em destaque acima da cortina preta durante a abertura (z-[85]),
-          e após a animação finalizar retorna ao fundo da página (z-[1]) com um desfoque sutil de ~5% (blur-[0.7px]). */}
+          Fica nítida acima da cortina preta durante a abertura (z-[85]),
+          e após a animação finalizar retorna ao fundo da página (z-[1]) com desfoque sutil (~5%). */}
       <LycorisParticles
         className={`pointer-events-none fixed inset-0 h-full w-full transition-all duration-1000 ${
           phase === 'done'
@@ -63,14 +61,47 @@ export default function InitialPageLoader({
         }`}
       />
 
-      {/* Cortina Preta Inicial que desaparece suavemente revelando a página */}
+      {/* Cortina Preta Inicial + Flor de Lycoris Centralizada com Glow + Nome Lycoris Garden */}
       {phase !== 'done' && (
         <div
           aria-hidden="true"
-          className={`pointer-events-none fixed inset-0 z-[80] bg-[#050505] transition-opacity ease-out ${
-            phase === 'dark' ? 'opacity-100 duration-300' : 'opacity-0 duration-[1800ms]'
+          className={`pointer-events-none fixed inset-0 z-[80] bg-[#050505] flex items-center justify-center transition-opacity ease-out ${
+            phase === 'dark' ? 'opacity-100 duration-300' : 'opacity-0 duration-[1750ms]'
           }`}
-        />
+        >
+          {/* Emblema Central da Abertura (Fica acima das pétalas com z-[90]) */}
+          <div
+            className={`relative z-[90] flex flex-col items-center justify-center px-6 text-center transition-all ease-out ${
+              phase === 'dark'
+                ? 'opacity-100 scale-100 translate-y-0 duration-700'
+                : 'opacity-0 scale-105 -translate-y-2 duration-[1100ms]'
+            }`}
+          >
+            {/* Halo luminoso carmesim pulsante atrás da flor */}
+            <div className="pointer-events-none absolute -inset-10 rounded-full bg-lycoris-600/25 blur-3xl animate-pulse" />
+            <div className="pointer-events-none absolute w-40 h-40 sm:w-52 sm:h-52 rounded-full bg-lycoris-500/20 blur-2xl" />
+
+            {/* Flor Lycoris Centralizada com Efeito Glow */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/lycoris-flower.png"
+              alt="Lycoris Radiata"
+              className="relative w-32 h-32 sm:w-44 sm:h-44 object-contain drop-shadow-[0_0_25px_rgba(225,29,72,0.85)] animate-float"
+            />
+
+            {/* Nome Lycoris Garden com Brilho Carmesim */}
+            <div className="relative mt-4 sm:mt-5 space-y-1.5">
+              <span className="block font-serif text-2xl sm:text-4xl font-black tracking-[0.18em] text-white text-glow">
+                LYCORIS <span className="text-lycoris-500">GARDEN</span>
+              </span>
+              <div className="flex items-center justify-center gap-2.5 opacity-80">
+                <span className="h-[1px] w-8 sm:w-12 bg-gradient-to-r from-transparent to-lycoris-500" />
+                <span className="w-1.5 h-1.5 rotate-45 bg-lycoris-500 shadow-lycoris-glow" />
+                <span className="h-[1px] w-8 sm:w-12 bg-gradient-to-l from-transparent to-lycoris-500" />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Conteúdo da Página com Fade-In Gradativo de Cima para Baixo */}
