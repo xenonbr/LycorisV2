@@ -2,33 +2,39 @@ import { NextResponse } from 'next/server';
 import {
   getAdminAccessConfig,
   saveAdminAccessConfig,
-  isAdminRequest,
+  resolveAdminSession,
   isMasterAdminRequest,
   unauthorized,
   forbiddenMaster,
-  DEFAULT_LEVEL1_MODULES,
+  buildModules,
 } from '@/lib/auth';
-import { AdminModuleKey, ExtraAdminPassword } from '@/lib/types';
+import { AdminAccount } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 // GET:
-// - Se Admin Nível 2: retorna toda a configuração (senhas + módulos liberados para Nível 1)
-// - Se Admin Nível 1: retorna apenas quais módulos estão liberados (sem expor as senhas)
+// - Admin mestre: retorna a senha mestra + todas as contas individuais com seus módulos
+// - Conta individual: retorna apenas os módulos liberados para ela (nunca expõe senhas)
 export async function GET(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  const session = await resolveAdminSession(request);
+  if (!session) return unauthorized();
 
-  const config = await getAdminAccessConfig();
-  if (!isMasterAdminRequest(request)) {
+  if (!session.isMaster) {
     return NextResponse.json({
-      level1Modules: config.level1Modules,
+      myModules: session.modules,
+      label: session.label,
     });
   }
 
-  return NextResponse.json(config);
+  const config = await getAdminAccessConfig();
+  return NextResponse.json({
+    ...config,
+    myModules: session.modules,
+    label: session.label,
+  });
 }
 
-// PUT: Apenas Admin Nível 2 pode alterar módulos liberados para o Nível 1, trocar senhas ou gerenciar senhas extras
+// PUT: apenas o Admin mestre altera a senha mestra e gerencia contas/permissões individuais
 export async function PUT(request: Request) {
   if (!isMasterAdminRequest(request)) return forbiddenMaster();
 
@@ -36,43 +42,57 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const current = await getAdminAccessConfig();
 
-    const nextLevel1Password =
-      typeof body.level1Password === 'string' && body.level1Password.trim().length >= 3
-        ? body.level1Password.trim()
-        : current.level1Password;
-
-    const nextLevel2Password =
+    const nextMaster =
       typeof body.level2Password === 'string' && body.level2Password.trim().length >= 3
         ? body.level2Password.trim()
         : current.level2Password;
 
-    const nextModules: Record<AdminModuleKey, boolean> = {
-      ...DEFAULT_LEVEL1_MODULES,
-      ...current.level1Modules,
-      ...(body.level1Modules || {}),
-    };
+    let nextAccounts: AdminAccount[] = current.accounts;
 
-    let nextExtraPasswords: ExtraAdminPassword[] = Array.isArray(current.extraPasswords)
-      ? [...current.extraPasswords]
-      : [];
+    if (Array.isArray(body.accounts)) {
+      const cleaned: AdminAccount[] = [];
+      const seenPasswords = new Set<string>([nextMaster]);
 
-    if (Array.isArray(body.extraPasswords)) {
-      nextExtraPasswords = body.extraPasswords
-        .map((item: any) => ({
-          id: String(item.id || crypto.randomUUID()),
-          label: String(item.label || 'Acesso Extra').trim().slice(0, 60),
-          password: String(item.password || '').trim(),
-          level: (Number(item.level) === 2 ? 2 : 1) as 1 | 2,
-          created_at: item.created_at || new Date().toISOString(),
-        }))
-        .filter((item: ExtraAdminPassword) => item.password.length >= 3);
+      for (const item of body.accounts) {
+        const password = String(item?.password || '').trim();
+        const label = String(item?.label || '').trim().slice(0, 60);
+
+        if (!label) {
+          return NextResponse.json(
+            { error: 'Toda conta precisa de um nome de identificação.' },
+            { status: 400 }
+          );
+        }
+        if (password.length < 3) {
+          return NextResponse.json(
+            { error: `A senha da conta "${label}" precisa ter pelo menos 3 caracteres.` },
+            { status: 400 }
+          );
+        }
+        if (seenPasswords.has(password)) {
+          return NextResponse.json(
+            {
+              error: `A senha da conta "${label}" já está em uso (outra conta ou a senha mestra). Escolha uma senha diferente.`,
+            },
+            { status: 409 }
+          );
+        }
+        seenPasswords.add(password);
+
+        cleaned.push({
+          id: String(item?.id || crypto.randomUUID()),
+          label,
+          password,
+          modules: buildModules(item?.modules, false),
+          created_at: item?.created_at || new Date().toISOString(),
+        });
+      }
+      nextAccounts = cleaned;
     }
 
     const saved = await saveAdminAccessConfig({
-      level1Password: nextLevel1Password,
-      level2Password: nextLevel2Password,
-      extraPasswords: nextExtraPasswords,
-      level1Modules: nextModules,
+      level2Password: nextMaster,
+      accounts: nextAccounts,
     });
 
     return NextResponse.json(saved);

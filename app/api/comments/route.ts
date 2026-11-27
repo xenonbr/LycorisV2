@@ -15,76 +15,21 @@ import {
 import { INITIAL_GALLERY, INITIAL_SUPPORTERS } from '@/lib/mockData';
 import { validateCommentInput } from '@/lib/moderation';
 import { CommentIdentityBinding } from '@/lib/types';
+import { getCommentIdentities, saveCommentIdentities } from '@/lib/commentIdentities';
 
 export const dynamic = 'force-dynamic';
 
 const PUBLIC_BUCKET = 'lycoris-media';
-const PRIVATE_BUCKET = 'lycoris-private';
 const BLOCKED_WORDS_PATH = 'settings/blocked-words.json';
-const IDENTITIES_PATH = 'settings/comment-identities.json';
 const NICK_COOKIE_NAME = 'lycoris_member_nick';
 
-export interface CommentIdentitiesStore {
-  // Mapa ipHash -> vínculo do usuário
-  byIp: Record<string, CommentIdentityBinding>;
-  // Mapa commentId -> ipHash (para exibir a tag #A1B2C3 e status de bloqueio no painel admin)
-  commentIpMap: Record<string, string>;
-}
-
-let localIdentities: CommentIdentitiesStore = {
-  byIp: {},
-  commentIpMap: {},
-};
-
-function normalizeNick(name: string): string {
-  return String(name || '')
+function normalizeNick(nick: string): string {
+  return String(nick || '')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ');
-}
-
-export async function getCommentIdentities(): Promise<CommentIdentitiesStore> {
-  if (isSupabaseConfigured && supabaseAdmin) {
-    try {
-      const { data, error } = await supabaseAdmin.storage
-        .from(PRIVATE_BUCKET)
-        .download(IDENTITIES_PATH);
-      if (!error && data) {
-        const parsed = JSON.parse(await data.text());
-        if (parsed && typeof parsed === 'object') {
-          localIdentities = {
-            byIp: parsed.byIp && typeof parsed.byIp === 'object' ? parsed.byIp : {},
-            commentIpMap:
-              parsed.commentIpMap && typeof parsed.commentIpMap === 'object'
-                ? parsed.commentIpMap
-                : {},
-          };
-          return localIdentities;
-        }
-      }
-    } catch {
-      // Usa estado inicial se ainda não existir
-    }
-  }
-  return localIdentities;
-}
-
-export async function saveCommentIdentities(
-  store: CommentIdentitiesStore
-): Promise<void> {
-  localIdentities = store;
-  if (isSupabaseConfigured && supabaseAdmin) {
-    const buffer = Buffer.from(JSON.stringify(store, null, 2), 'utf-8');
-    await supabaseAdmin.storage
-      .from(PRIVATE_BUCKET)
-      .upload(IDENTITIES_PATH, buffer, {
-        contentType: 'application/json',
-        cacheControl: '0',
-        upsert: true,
-      });
-  }
 }
 
 async function getCustomBlockedWords(): Promise<string[]> {

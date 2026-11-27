@@ -9,7 +9,7 @@ import {
 import {
   getCommentIdentities,
   saveCommentIdentities,
-} from '@/app/api/comments/route';
+} from '@/lib/commentIdentities';
 import { stripForbiddenChars } from '@/lib/moderation';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +46,9 @@ async function getCustomBlockedWords(): Promise<string[]> {
 }
 
 export async function GET(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  const canComments = await canAccessAdminModule(request, 'comments');
+  const canUsers = await canAccessAdminModule(request, 'users');
+  if (!canComments && !canUsers) return forbiddenMaster();
   const [words, identitiesStore] = await Promise.all([
     getCustomBlockedWords(),
     getCommentIdentities(),

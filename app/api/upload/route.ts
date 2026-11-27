@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isAdminRequest, unauthorized } from '@/lib/auth';
+import { isAdminRequest, canAccessAdminModule, unauthorized, forbiddenMaster } from '@/lib/auth';
+import { AdminModuleKey } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 const BUCKET_NAME = 'lycoris-media';
 const ALLOWED_FOLDERS = new Set(['events', 'gallery', 'supporters', 'sawvr']);
+// Cada pasta de upload só pode ser usada por quem tem o módulo correspondente liberado
+const FOLDER_MODULE: Record<string, AdminModuleKey> = {
+  events: 'events',
+  gallery: 'gallery',
+  supporters: 'supporters',
+  sawvr: 'sawvr',
+};
 
 function detectImageFormat(buf: Buffer): 'webp' | 'png' | 'jpg' | 'gif' | null {
   if (buf.length < 12) return null;
@@ -75,6 +83,10 @@ export async function POST(request: Request) {
     const rawFolder = String(formData.get('folder') || 'gallery').toLowerCase().trim();
     // Whitelist estrita de pastas para impedir escrita em settings/ ou path traversal
     const folder = ALLOWED_FOLDERS.has(rawFolder) ? rawFolder : 'gallery';
+
+    if (!(await canAccessAdminModule(request, FOLDER_MODULE[folder]))) {
+      return forbiddenMaster();
+    }
 
     if (!file) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });

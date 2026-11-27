@@ -62,7 +62,8 @@ async function saveGallerySettings(settings: GallerySettings): Promise<void> {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const includeHidden =
-    searchParams.get('includeHidden') === 'true' && isAdminRequest(request);
+    searchParams.get('includeHidden') === 'true' &&
+    (await canAccessAdminModule(request, 'gallery'));
 
   const settings = await getGallerySettings();
   const hiddenSet = new Set(settings.hiddenIds);

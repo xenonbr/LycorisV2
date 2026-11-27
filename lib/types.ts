@@ -111,17 +111,16 @@ export type AdminModuleKey =
   | 'comments'
   | 'users';
 
-export interface ExtraAdminPassword {
+export interface AdminAccount {
   id: string;
   label: string;
   password: string;
-  level: 1 | 2;
+  modules: Record<AdminModuleKey, boolean>;
   created_at: string;
 }
 
+// Config de acesso: apenas a senha mestra + contas individuais, cada uma com seus próprios módulos liberados
 export interface AdminAccessConfig {
-  level1Password: string;
   level2Password: string;
-  extraPasswords: ExtraAdminPassword[];
-  level1Modules: Record<AdminModuleKey, boolean>;
+  accounts: AdminAccount[];
 }

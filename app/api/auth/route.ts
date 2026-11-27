@@ -25,15 +25,11 @@ export async function POST(request: Request) {
         return NextResponse.json({
           authenticated: true,
           masterToken: createMasterToken(),
-          level1Modules: check.level1Modules,
           message: 'Acesso de Administrador Principal liberado',
         });
       }
       return NextResponse.json(
-        {
-          authenticated: false,
-          message: 'Senha do Administrador Principal incorreta.',
-        },
+        { authenticated: false, message: 'Senha do Administrador Principal incorreta.' },
         { status: 401 }
       );
     }
@@ -41,9 +37,8 @@ export async function POST(request: Request) {
     if (check.authenticated) {
       return NextResponse.json({
         authenticated: true,
-        token: createAdminToken(),
+        token: createAdminToken(check.accountId),
         masterToken: check.isMaster ? createMasterToken() : undefined,
-        level1Modules: check.level1Modules,
         label: check.label,
         message: 'Autenticado com sucesso',
       });

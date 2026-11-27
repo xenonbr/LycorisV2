@@ -45,8 +45,7 @@ import {
   SawCatalogItem,
   PendingGalleryPost,
   AdminModuleKey,
-  ExtraAdminPassword,
-  AdminAccessConfig,
+  AdminAccount,
   CommentIdentityBinding,
 } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
@@ -109,6 +108,19 @@ function isValidCalendarDate(dateStr?: string): boolean {
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
+
+// Módulos que podem ser liberados individualmente para cada conta de acesso
+const ACCESS_MODULE_DEFS: { key: AdminModuleKey; title: string; desc: string }[] = [
+  { key: 'events', title: 'Eventos', desc: 'Criar, editar e remover eventos do calendário.' },
+  { key: 'gallery', title: 'Galeria de Fotos', desc: 'Publicar fotos, reordenar e ocultar imagens.' },
+  { key: 'registrations', title: 'Inscrições', desc: 'Ver inscritos por evento e baixar CSV.' },
+  { key: 'supporters', title: 'Apoiadores', desc: 'Gerenciar apoiadores, fundos e destaques Cristal Glass.' },
+  { key: 'stats', title: 'Destaques do Topo', desc: 'Editar as caixas de estatísticas do banner inicial.' },
+  { key: 'sawvr', title: 'Catálogo SawVR', desc: 'Publicar e gerenciar produtos na loja /sawvr.' },
+  { key: 'submissions', title: 'Aprovar Fotos', desc: 'Aprovar ou recusar fotos enviadas pela comunidade.' },
+  { key: 'comments', title: 'Moderação', desc: 'Excluir comentários e gerenciar palavras bloqueadas.' },
+  { key: 'users', title: 'Usuários & IPs', desc: 'Ver nicks por IP, editar nomes e desvincular/banir IPs.' },
+];
 
 const EMPTY_SAW_ITEM = {
   title: '',
@@ -201,14 +213,10 @@ export default function AdminPage() {
     comments: false,
     users: false,
   });
-  const [level1PasswordEdit, setLevel1PasswordEdit] = useState('lyly2026');
-  const [level2PasswordEdit, setLevel2PasswordEdit] = useState('ra028899');
-  const [extraPasswords, setExtraPasswords] = useState<ExtraAdminPassword[]>([]);
-  const [newExtraPassForm, setNewExtraPassForm] = useState({
-    label: '',
-    password: '',
-    level: 1 as 1 | 2,
-  });
+  const [level2PasswordEdit, setLevel2PasswordEdit] = useState('');
+  const [accounts, setAccounts] = useState<AdminAccount[]>([]);
+  const [newAccountForm, setNewAccountForm] = useState({ label: '', password: '' });
+  const [revealedAccountIds, setRevealedAccountIds] = useState<Record<string, boolean>>({});
   const [savingAccess, setSavingAccess] = useState(false);
 
   const canAccess = (mod: AdminModuleKey) =>
@@ -479,7 +487,7 @@ export default function AdminPage() {
           api('/api/access'),
         ]);
 
-      if (resReg.status === 401) {
+      if (resAcc.status === 401 || resReg.status === 401) {
         handleLogout(); // token expirado
         return;
       }
@@ -503,31 +511,21 @@ export default function AdminPage() {
         if (Array.isArray(sub)) setPendingPosts(sub);
       }
       if (resAcc.ok) {
-        const acc: Partial<AdminAccessConfig> = await resAcc.json();
-        if (acc.level1Modules) {
-          const nextMods = { ...level1Modules, ...acc.level1Modules };
+        const acc = await resAcc.json();
+        if (acc.myModules) {
+          const nextMods = { ...level1Modules, ...acc.myModules };
           setLevel1Modules(nextMods);
-          if (!isMasterUnlocked && !sessionStorage.getItem(MASTER_TOKEN_KEY)) {
-            const firstAvailable = (
-              [
-                'events',
-                'gallery',
-                'registrations',
-                'supporters',
-                'stats',
-                'sawvr',
-                'submissions',
-                'comments',
-              ] as AdminModuleKey[]
-            ).find((k) => Boolean(nextMods[k]));
+          if (!sessionStorage.getItem(MASTER_TOKEN_KEY)) {
+            const firstAvailable = ACCESS_MODULE_DEFS.map((d) => d.key).find((k) =>
+              Boolean(nextMods[k])
+            );
             if (firstAvailable && !nextMods[activeTab as AdminModuleKey]) {
               setActiveTab(firstAvailable);
             }
           }
         }
-        if (acc.level1Password) setLevel1PasswordEdit(acc.level1Password);
-        if (acc.level2Password) setLevel2PasswordEdit(acc.level2Password);
-        if (Array.isArray(acc.extraPasswords)) setExtraPasswords(acc.extraPasswords);
+        if (typeof acc.level2Password === 'string') setLevel2PasswordEdit(acc.level2Password);
+        if (Array.isArray(acc.accounts)) setAccounts(acc.accounts);
       }
       if (resEv.ok) setEvents(await resEv.json());
       if (resGal.ok) setGallery(await resGal.json());
@@ -537,100 +535,140 @@ export default function AdminPage() {
     }
   };
 
-  // Salvar configurações de Acessos & Senhas (Admin Nível 2)
+  // Salvar configurações de Acessos & Senhas (somente Admin mestre)
   const saveAccessSettings = async (
-    nextConfig: Partial<AdminAccessConfig>,
+    next: { level2Password?: string; accounts?: AdminAccount[] },
     toastMessage = 'Configurações de acesso atualizadas!'
-  ) => {
+  ): Promise<boolean> => {
     setSavingAccess(true);
     try {
-      const payload = {
-        level1Password: nextConfig.level1Password ?? level1PasswordEdit,
-        level2Password: nextConfig.level2Password ?? level2PasswordEdit,
-        extraPasswords: nextConfig.extraPasswords ?? extraPasswords,
-        level1Modules: nextConfig.level1Modules ?? level1Modules,
-      };
       const res = await api('/api/access', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          level2Password: next.level2Password ?? level2PasswordEdit,
+          accounts: next.accounts ?? accounts,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        if (data.level1Modules) setLevel1Modules(data.level1Modules);
-        if (data.level1Password) setLevel1PasswordEdit(data.level1Password);
-        if (data.level2Password) setLevel2PasswordEdit(data.level2Password);
-        if (Array.isArray(data.extraPasswords)) setExtraPasswords(data.extraPasswords);
+        if (Array.isArray(data.accounts)) setAccounts(data.accounts);
+        if (typeof data.level2Password === 'string') setLevel2PasswordEdit(data.level2Password);
         showToast(toastMessage);
-      } else {
-        showToast(data.error || 'Erro ao salvar configurações de acesso');
+        return true;
       }
+      showToast(data.error || 'Erro ao salvar configurações de acesso');
+      fetchDashboardData();
+      return false;
     } catch {
       showToast('Erro de conexão ao salvar acessos');
+      fetchDashboardData();
+      return false;
     } finally {
       setSavingAccess(false);
     }
   };
 
-  const handleToggleLevel1Module = async (modKey: AdminModuleKey) => {
-    const updated = {
-      ...level1Modules,
-      [modKey]: !level1Modules[modKey],
-    };
-    setLevel1Modules(updated);
+  const handleToggleAccountModule = async (accountId: string, modKey: AdminModuleKey) => {
+    const updated = accounts.map((a) =>
+      a.id === accountId
+        ? { ...a, modules: { ...a.modules, [modKey]: !a.modules[modKey] } }
+        : a
+    );
+    setAccounts(updated);
+    const acc = updated.find((a) => a.id === accountId);
     await saveAccessSettings(
-      { level1Modules: updated },
-      updated[modKey]
-        ? 'Módulo liberado para o Admin Nível 1!'
-        : 'Módulo ocultado do Admin Nível 1!'
+      { accounts: updated },
+      acc?.modules[modKey]
+        ? `Módulo liberado para "${acc?.label}"!`
+        : `Módulo removido de "${acc?.label}"!`
     );
   };
 
-  const handleSaveMainPasswords = async (e: React.FormEvent) => {
+  const handleSetAllAccountModules = async (accountId: string, value: boolean) => {
+    const updated = accounts.map((a) =>
+      a.id === accountId
+        ? {
+            ...a,
+            modules: ACCESS_MODULE_DEFS.reduce(
+              (acc, d) => ({ ...acc, [d.key]: value }),
+              {} as Record<AdminModuleKey, boolean>
+            ),
+          }
+        : a
+    );
+    setAccounts(updated);
+    await saveAccessSettings(
+      { accounts: updated },
+      value ? 'Todos os módulos liberados para esta conta!' : 'Todos os módulos removidos desta conta!'
+    );
+  };
+
+  const handleSaveMasterPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (level1PasswordEdit.trim().length < 3 || level2PasswordEdit.trim().length < 3) {
-      showToast('As senhas devem ter pelo menos 3 caracteres.');
+    if (level2PasswordEdit.trim().length < 3) {
+      showToast('A senha mestra deve ter pelo menos 3 caracteres.');
       return;
     }
     await saveAccessSettings(
-      {
-        level1Password: level1PasswordEdit.trim(),
-        level2Password: level2PasswordEdit.trim(),
-      },
-      'Senhas principais atualizadas com sucesso!'
+      { level2Password: level2PasswordEdit.trim() },
+      'Senha mestra atualizada com sucesso!'
     );
   };
 
-  const handleAddExtraPassword = async (e: React.FormEvent) => {
+  const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    const label = newExtraPassForm.label.trim();
-    const password = newExtraPassForm.password.trim();
+    const label = newAccountForm.label.trim();
+    const password = newAccountForm.password.trim();
     if (!label || password.length < 3) {
-      showToast('Preencha uma identificação e uma senha com pelo menos 3 caracteres.');
+      showToast('Informe um nome e uma senha com pelo menos 3 caracteres.');
       return;
     }
-    const newEntry: ExtraAdminPassword = {
+    const newAccount: AdminAccount = {
       id: crypto.randomUUID(),
       label,
       password,
-      level: newExtraPassForm.level,
+      modules: {
+        events: true,
+        gallery: true,
+        registrations: true,
+        supporters: false,
+        stats: false,
+        sawvr: false,
+        submissions: false,
+        comments: false,
+        users: false,
+      },
       created_at: new Date().toISOString(),
     };
-    const nextList = [newEntry, ...extraPasswords];
-    setExtraPasswords(nextList);
-    setNewExtraPassForm({ label: '', password: '', level: 1 });
-    await saveAccessSettings(
-      { extraPasswords: nextList },
-      `Nova senha cadastrada para ${label}!`
+    const nextList = [newAccount, ...accounts];
+    const ok = await saveAccessSettings(
+      { accounts: nextList },
+      `Conta "${label}" criada! Ajuste os módulos abaixo.`
     );
+    if (ok) setNewAccountForm({ label: '', password: '' });
   };
 
-  const handleDeleteExtraPassword = async (id: string) => {
-    if (!confirm('Deseja revogar e excluir esta senha de acesso?')) return;
-    const nextList = extraPasswords.filter((p) => p.id !== id);
-    setExtraPasswords(nextList);
-    await saveAccessSettings({ extraPasswords: nextList }, 'Senha extra removida.');
+  const handleChangeAccountPassword = async (account: AdminAccount) => {
+    const typed = window.prompt(`Nova senha para "${account.label}" (mínimo 3 caracteres):`, '');
+    if (typed === null) return;
+    const password = typed.trim();
+    if (password.length < 3) {
+      showToast('A senha deve ter pelo menos 3 caracteres.');
+      return;
+    }
+    const updated = accounts.map((a) => (a.id === account.id ? { ...a, password } : a));
+    await saveAccessSettings({ accounts: updated }, `Senha de "${account.label}" atualizada!`);
   };
+
+  const handleDeleteAccount = async (account: AdminAccount) => {
+    if (!confirm(`Revogar e excluir a conta "${account.label}"? Quem estiver logado com ela perde o acesso na hora.`)) {
+      return;
+    }
+    const updated = accounts.filter((a) => a.id !== account.id);
+    await saveAccessSettings({ accounts: updated }, `Conta "${account.label}" removida.`);
+  };
+
 
   // Gerenciar vínculos de Nick por IP e bloqueio de IP nos comentários
   const handleToggleBlockIp = async (ipTag: string) => {
@@ -1463,7 +1501,7 @@ export default function AdminPage() {
             {
               id: 'access' as const,
               label: 'Acessos & Senhas',
-              count: 2 + extraPasswords.length,
+              count: 1 + accounts.length,
               icon: KeyRound,
               goldIcon: true,
               visible: isMasterUnlocked,
@@ -3515,309 +3553,229 @@ export default function AdminPage() {
         )}
 
         {/* ============================================================== */}
-        {/* ABA: ACESSOS & SENHAS (EXCLUSIVO ADMIN NÍVEL 2) */}
+        {/* ABA: ACESSOS & SENHAS (EXCLUSIVO ADMIN MESTRE) */}
         {/* ============================================================== */}
         {activeTab === 'access' && isMasterUnlocked && (
           <div className="space-y-8">
-            {/* Bloco 1: Caixinhas de Permissões do Admin Nível 1 */}
-            <div className="p-6 rounded-2xl bg-zinc-950/90 border border-lycoris-900/50 backdrop-blur-md space-y-5 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-4">
-                <div>
-                  <h2 className="font-serif text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-lycoris-400" />
-                    Permissões de Módulos do Admin Nível 1
-                  </h2>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Ative ou desative as caixinhas abaixo para escolher exatamente quais abas quem entra com senha de Nível 1 pode visualizar e editar.
-                  </p>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-lycoris-950 border border-lycoris-700/60 text-lycoris-300 text-[11px] font-semibold self-start sm:self-center shrink-0">
-                  Salvamento Automático ao Marcar
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                {(
-                  [
-                    {
-                      key: 'events' as AdminModuleKey,
-                      title: 'Eventos',
-                      desc: 'Criar, editar e remover eventos do calendário.',
-                    },
-                    {
-                      key: 'gallery' as AdminModuleKey,
-                      title: 'Galeria de Fotos',
-                      desc: 'Publicar fotos, reordenar e ocultar imagens.',
-                    },
-                    {
-                      key: 'registrations' as AdminModuleKey,
-                      title: 'Inscrições',
-                      desc: 'Visualizar lista de inscritos por evento e baixar CSV.',
-                    },
-                    {
-                      key: 'supporters' as AdminModuleKey,
-                      title: 'Apoiadores',
-                      desc: 'Gerenciar apoiadores, fundos e destaques Cristal Glass.',
-                    },
-                    {
-                      key: 'stats' as AdminModuleKey,
-                      title: 'Destaques do Topo',
-                      desc: 'Editar as 4 caixas de estatísticas do banner inicial.',
-                    },
-                    {
-                      key: 'sawvr' as AdminModuleKey,
-                      title: 'Catálogo SawVR',
-                      desc: 'Publicar e gerenciar produtos na loja /sawvr.',
-                    },
-                    {
-                      key: 'submissions' as AdminModuleKey,
-                      title: 'Aprovar Fotos',
-                      desc: 'Aprovar ou recusar fotos enviadas pela comunidade.',
-                    },
-                    {
-                      key: 'comments' as AdminModuleKey,
-                      title: 'Moderação',
-                      desc: 'Excluir comentários e gerenciar palavras bloqueadas.',
-                    },
-                    {
-                      key: 'users' as AdminModuleKey,
-                      title: 'Usuários & IPs',
-                      desc: 'Visualizar nicks vinculados por IP, editar nomes e desvincular/banir IPs.',
-                    },
-                  ] as const
-                ).map((item) => {
-                  const enabled = Boolean(level1Modules[item.key]);
-                  return (
-                    <label
-                      key={item.key}
-                      className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all select-none ${
-                        enabled
-                          ? 'bg-gradient-to-br from-lycoris-950/60 via-zinc-900/90 to-zinc-950 border-lycoris-500/70 shadow-lycoris-glow'
-                          : 'bg-zinc-900/50 hover:bg-zinc-900 border-zinc-800 text-zinc-400'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        disabled={savingAccess}
-                        onChange={() => handleToggleLevel1Module(item.key)}
-                        className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer shrink-0"
-                      />
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white">{item.title}</span>
-                          <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                              enabled
-                                ? 'bg-emerald-950/90 border border-emerald-600/60 text-emerald-300'
-                                : 'bg-zinc-800 text-zinc-400'
-                            }`}
-                          >
-                            {enabled ? 'Liberado' : 'Bloqueado'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-zinc-400 leading-snug">{item.desc}</p>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Bloco 2: Trocar Senhas Principais & Cadastrar Novas Senhas de Acesso */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Coluna Esquerda: Alterar Senhas Principais (Nível 1 e Nível 2) */}
-              <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
+              {/* Senha Mestra */}
+              <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/90 border border-gothic-gold/30 backdrop-blur-md space-y-4 h-fit">
                 <div>
                   <h3 className="font-serif text-lg font-bold text-white flex items-center gap-2">
                     <KeyRound className="w-4 h-4 text-gothic-gold" />
-                    Senhas Principais do Painel
+                    Senha Mestra
                   </h3>
                   <p className="text-xs text-zinc-400 mt-1">
-                    Altere diretamente a senha padrão de Nível 1 ou a sua senha mestra de Nível 2.
+                    Acesso total a todas as abas e a este painel de contas. É a única senha que gerencia as demais.
                   </p>
                 </div>
 
-                <form onSubmit={handleSaveMainPasswords} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-zinc-300 font-semibold mb-1">
-                      Senha Padrão — Admin Nível 1
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      minLength={3}
-                      value={level1PasswordEdit}
-                      onChange={(e) => setLevel1PasswordEdit(e.target.value)}
-                      placeholder="Senha do Admin Nível 1"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-xs font-mono focus:outline-none focus:border-lycoris-500"
-                    />
-                    <span className="block text-[11px] text-zinc-500 mt-1">
-                      Acessa apenas os módulos marcados como &ldquo;Liberado&rdquo; acima.
-                    </span>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gothic-gold font-semibold mb-1">
-                      Senha Mestra — Admin Principal (Nível 2)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      minLength={3}
-                      value={level2PasswordEdit}
-                      onChange={(e) => setLevel2PasswordEdit(e.target.value)}
-                      placeholder="Senha do Admin Nível 2"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-gothic-gold/50 text-white text-xs font-mono focus:outline-none focus:border-gothic-gold"
-                    />
-                    <span className="block text-[11px] text-zinc-500 mt-1">
-                      Acesso total a todas as abas e ao controle de permissões e senhas.
-                    </span>
-                  </div>
-
+                <form onSubmit={handleSaveMasterPassword} className="space-y-3">
+                  <input
+                    type="text"
+                    required
+                    minLength={3}
+                    value={level2PasswordEdit}
+                    onChange={(e) => setLevel2PasswordEdit(e.target.value)}
+                    placeholder="Senha mestra"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-gothic-gold/50 text-white text-xs font-mono focus:outline-none focus:border-gothic-gold"
+                  />
                   <button
                     type="submit"
                     disabled={savingAccess}
                     className="w-full py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
                   >
-                    {savingAccess ? 'Salvando...' : 'Salvar Senhas Principais'}
+                    {savingAccess ? 'Salvando...' : 'Salvar Senha Mestra'}
                   </button>
                 </form>
               </div>
 
-              {/* Coluna Direita: Cadastrar Outras Senhas de Acesso (Moderadores / Equipe) */}
-              <div className="lg:col-span-7 p-6 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md space-y-5">
+              {/* Criar nova conta */}
+              <div className="lg:col-span-7 p-6 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
                 <div>
                   <h3 className="font-serif text-lg font-bold text-white flex items-center gap-2">
                     <Plus className="w-4 h-4 text-lycoris-500" />
-                    Cadastrar Outras Senhas de Acesso
+                    Nova Conta de Acesso
                   </h3>
                   <p className="text-xs text-zinc-400 mt-1">
-                    Crie senhas individuais para membros da equipe ou moderadores (escolha se a senha terá acesso Nível 1 ou Nível 2). Você pode revogar qualquer senha quando quiser.
+                    Cada senha criada é uma conta independente, com seus próprios módulos liberados. A conta nasce com Eventos, Galeria e Inscrições; ajuste as permissões na lista abaixo.
                   </p>
                 </div>
 
                 <form
-                  onSubmit={handleAddExtraPassword}
+                  onSubmit={handleAddAccount}
                   className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800"
                 >
-                  <div className="sm:col-span-4">
-                    <label className="block text-[11px] text-zinc-400 mb-1">
-                      Nome / Identificação
-                    </label>
+                  <div className="sm:col-span-5">
+                    <label className="block text-[11px] text-zinc-400 mb-1">Nome / Identificação</label>
                     <input
                       type="text"
                       required
-                      maxLength={50}
-                      placeholder="Ex: Moderação Eventos"
-                      value={newExtraPassForm.label}
-                      onChange={(e) =>
-                        setNewExtraPassForm({ ...newExtraPassForm, label: e.target.value })
-                      }
+                      maxLength={60}
+                      placeholder="Ex: Loja SawVR"
+                      value={newAccountForm.label}
+                      onChange={(e) => setNewAccountForm({ ...newAccountForm, label: e.target.value })}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
                     />
                   </div>
-
                   <div className="sm:col-span-4">
-                    <label className="block text-[11px] text-zinc-400 mb-1">
-                      Senha de Acesso
-                    </label>
+                    <label className="block text-[11px] text-zinc-400 mb-1">Senha</label>
                     <input
                       type="text"
                       required
                       minLength={3}
                       maxLength={60}
-                      placeholder="Digite a nova senha..."
-                      value={newExtraPassForm.password}
-                      onChange={(e) =>
-                        setNewExtraPassForm({ ...newExtraPassForm, password: e.target.value })
-                      }
+                      placeholder="Digite a senha..."
+                      value={newAccountForm.password}
+                      onChange={(e) => setNewAccountForm({ ...newAccountForm, password: e.target.value })}
                       className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs font-mono focus:outline-none focus:border-lycoris-500"
                     />
                   </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-[11px] text-zinc-400 mb-1">Nível</label>
-                    <select
-                      value={newExtraPassForm.level}
-                      onChange={(e) =>
-                        setNewExtraPassForm({
-                          ...newExtraPassForm,
-                          level: Number(e.target.value) === 2 ? 2 : 1,
-                        })
-                      }
-                      className="w-full px-2.5 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
-                    >
-                      <option value={1}>Nível 1</option>
-                      <option value={2}>Nível 2</option>
-                    </select>
-                  </div>
-
-                  <div className="sm:col-span-2 flex items-end">
+                  <div className="sm:col-span-3 flex items-end">
                     <button
                       type="submit"
                       disabled={savingAccess}
                       className="w-full py-2 px-3 rounded-lg bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors"
                     >
-                      Adicionar
+                      Criar Conta
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
 
-                <div className="space-y-2.5">
-                  <span className="block text-[11px] uppercase tracking-wider text-zinc-500 font-bold">
-                    Senhas Extras Cadastradas ({extraPasswords.length})
-                  </span>
+            {/* Lista de contas e permissões individuais */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-lycoris-400" />
+                  Contas e Permissões ({accounts.length})
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Marque ou desmarque as caixinhas de cada conta: o salvamento é imediato e vale para o próximo clique da pessoa.
+                </p>
+              </div>
 
-                  {extraPasswords.length === 0 ? (
-                    <div className="p-6 rounded-xl bg-zinc-900/40 border border-zinc-800/70 text-center text-xs text-zinc-500">
-                      Nenhuma senha extra cadastrada no momento. Apenas as duas senhas principais estão ativas.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {extraPasswords.map((item) => (
-                        <div
-                          key={item.id}
-                          className="p-3.5 rounded-xl bg-zinc-900/70 border border-zinc-800 flex items-center justify-between gap-3"
-                        >
-                          <div className="space-y-1 min-w-0">
+              {accounts.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-xs text-zinc-500">
+                  Nenhuma conta criada. Apenas a senha mestra consegue entrar no painel.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {accounts.map((acc) => {
+                    const enabledCount = ACCESS_MODULE_DEFS.filter((d) => acc.modules[d.key]).length;
+                    const revealed = Boolean(revealedAccountIds[acc.id]);
+                    return (
+                      <div
+                        key={acc.id}
+                        className="rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md overflow-hidden"
+                      >
+                        <div className="p-4 sm:px-5 bg-zinc-900/60 border-b border-zinc-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                          <div className="min-w-0 space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-white text-xs">
-                                {item.label}
-                              </span>
-                              <span
-                                className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                                  item.level === 2
-                                    ? 'bg-gothic-gold/15 border border-gothic-gold/50 text-gothic-gold'
-                                    : 'bg-lycoris-950 border border-lycoris-800 text-lycoris-300'
-                                }`}
-                              >
-                                Nível {item.level}
+                              <span className="font-serif font-bold text-base text-white">{acc.label}</span>
+                              <span className="px-2 py-0.5 rounded-full bg-lycoris-950 border border-lycoris-800 text-lycoris-300 text-[10px] font-bold">
+                                {enabledCount}/{ACCESS_MODULE_DEFS.length} módulos
                               </span>
                             </div>
-                            <div className="text-xs text-zinc-400 flex items-center gap-2">
+                            <div className="flex items-center gap-2 text-xs text-zinc-400">
                               <span>Senha:</span>
                               <code className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-200 font-mono text-[11px]">
-                                {item.password}
+                                {revealed ? acc.password : '••••••••'}
                               </code>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRevealedAccountIds((prev) => ({ ...prev, [acc.id]: !prev[acc.id] }))
+                                }
+                                className="p-1 rounded text-zinc-500 hover:text-white"
+                                title={revealed ? 'Ocultar senha' : 'Mostrar senha'}
+                              >
+                                {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteExtraPassword(item.id)}
-                            title="Revogar senha"
-                            className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800/80 text-red-200 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Remover</span>
-                          </button>
+                          <div className="flex items-center gap-2 flex-wrap shrink-0">
+                            <button
+                              type="button"
+                              disabled={savingAccess}
+                              onClick={() => handleSetAllAccountModules(acc.id, true)}
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800/80 text-emerald-200 text-[11px] font-semibold transition-colors"
+                            >
+                              Liberar tudo
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingAccess}
+                              onClick={() => handleSetAllAccountModules(acc.id, false)}
+                              className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[11px] font-semibold transition-colors"
+                            >
+                              Bloquear tudo
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingAccess}
+                              onClick={() => handleChangeAccountPassword(acc)}
+                              className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-[11px] font-semibold transition-colors"
+                            >
+                              Trocar senha
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingAccess}
+                              onClick={() => handleDeleteAccount(acc)}
+                              className="px-2.5 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800/80 text-red-200 text-[11px] font-semibold inline-flex items-center gap-1 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Remover</span>
+                            </button>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {ACCESS_MODULE_DEFS.map((def) => {
+                            const enabled = Boolean(acc.modules[def.key]);
+                            return (
+                              <label
+                                key={def.key}
+                                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                                  enabled
+                                    ? 'bg-gradient-to-br from-lycoris-950/60 via-zinc-900/90 to-zinc-950 border-lycoris-500/60'
+                                    : 'bg-zinc-900/50 hover:bg-zinc-900 border-zinc-800'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={enabled}
+                                  disabled={savingAccess}
+                                  onChange={() => handleToggleAccountModule(acc.id, def.key)}
+                                  className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer shrink-0"
+                                />
+                                <div className="min-w-0 space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-white">{def.title}</span>
+                                    <span
+                                      className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                                        enabled
+                                          ? 'bg-emerald-950/90 border border-emerald-600/60 text-emerald-300'
+                                          : 'bg-zinc-800 text-zinc-400'
+                                      }`}
+                                    >
+                                      {enabled ? 'Liberado' : 'Bloqueado'}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-zinc-400 leading-snug">{def.desc}</p>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
