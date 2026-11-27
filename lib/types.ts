@@ -108,7 +108,8 @@ export type AdminModuleKey =
   | 'stats'
   | 'sawvr'
   | 'submissions'
-  | 'comments';
+  | 'comments'
+  | 'users';
 
 export interface ExtraAdminPassword {
   id: string;

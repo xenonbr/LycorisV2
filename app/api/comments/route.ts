@@ -137,16 +137,20 @@ export async function GET(request: Request) {
     const ipHash = computeIpHash(ip);
     const store = await getCommentIdentities();
     const binding = store.byIp[ipHash];
-    const cookieNick = verifySignedNickCookieValue(
-      parseCookieHeader(request, NICK_COOKIE_NAME)
-    );
 
-    const lockedName = binding?.authorName || cookieNick || null;
-    return NextResponse.json({
+    // Se o vínculo existe no servidor, ele é a fonte oficial (inclusive quando o admin edita o nick).
+    // Se o vínculo foi removido/desvinculado pelo admin, ignora e limpa qualquer cookie antigo do navegador.
+    const lockedName = binding?.authorName || null;
+    const res = NextResponse.json({
       lockedName,
       ipTag: computeIpTag(ipHash),
       blocked: Boolean(binding?.blocked),
     });
+
+    if (!binding) {
+      res.cookies.delete(NICK_COOKIE_NAME);
+    }
+    return res;
   }
 
   const isAdminMod = await canAccessAdminModule(request, 'comments');
@@ -214,11 +218,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Verifica identidade vinculada por IP ou Cookie assinado do dispositivo
-    const cookieNick = verifySignedNickCookieValue(
-      parseCookieHeader(request, NICK_COOKIE_NAME)
-    );
-    const lockedAuthorName = existingBinding?.authorName || cookieNick;
+    // 2. Verifica identidade vinculada por IP no servidor (fonte oficial)
+    const lockedAuthorName = existingBinding?.authorName || null;
     const requestedName = String(author_name || '').trim();
 
     if (

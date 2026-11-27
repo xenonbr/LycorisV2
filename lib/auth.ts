@@ -18,6 +18,7 @@ export const DEFAULT_LEVEL1_MODULES: Record<AdminModuleKey, boolean> = {
   sawvr: false,
   submissions: false,
   comments: false,
+  users: false,
 };
 
 function getEnvLevel1Password(): string {

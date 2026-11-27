@@ -432,22 +432,30 @@ export default function GallerySection({
                           <span>Comentando como:</span>
                           <strong className="text-lycoris-300 font-semibold">{lockedAuthorName}</strong>
                         </span>
-                        <span className="text-[10px] text-zinc-500">Nick vinculado ao seu IP</span>
+                        <span className="text-[10px] text-zinc-500">Nome permanente vinculado</span>
                       </div>
                     ) : (
-                      <input
-                        type="text"
-                        required
-                        disabled={isIpBlocked}
-                        maxLength={MAX_AUTHOR_LENGTH}
-                        placeholder="Escolha seu Nick no VRChat (ficará vinculado ao seu IP)..."
-                        value={authorName}
-                        onChange={(e) => {
-                          setCommentError('');
-                          setAuthorName(stripForbiddenChars(e.target.value, true));
-                        }}
-                        className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none disabled:opacity-50"
-                      />
+                      <div className="space-y-1.5">
+                        <input
+                          type="text"
+                          required
+                          disabled={isIpBlocked}
+                          maxLength={MAX_AUTHOR_LENGTH}
+                          placeholder="Seu nome ou Nick no VRChat..."
+                          value={authorName}
+                          onChange={(e) => {
+                            setCommentError('');
+                            setAuthorName(stripForbiddenChars(e.target.value, true));
+                          }}
+                          className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none disabled:opacity-50"
+                        />
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-950/50 border border-amber-700/40 text-[11px] text-amber-200/95">
+                          <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>
+                            <strong>Atenção:</strong> escolha com cuidado! Este nome será <strong>permanente</strong> e ficará vinculado ao seu IP/dispositivo.
+                          </span>
+                        </div>
+                      </div>
                     )}
                     <div className="relative">
                       <textarea

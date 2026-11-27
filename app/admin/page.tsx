@@ -31,6 +31,9 @@ import {
   Check,
   X,
   KeyRound,
+  UserCheck,
+  Edit3,
+  Search,
 } from 'lucide-react';
 import {
   VRChatEvent,
@@ -182,6 +185,7 @@ export default function AdminPage() {
     | 'stats'
     | 'sawvr'
     | 'submissions'
+    | 'users'
     | 'access'
   >('events');
 
@@ -195,6 +199,7 @@ export default function AdminPage() {
     sawvr: false,
     submissions: false,
     comments: false,
+    users: false,
   });
   const [level1PasswordEdit, setLevel1PasswordEdit] = useState('lyly2026');
   const [level2PasswordEdit, setLevel2PasswordEdit] = useState('ra028899');
@@ -226,6 +231,9 @@ export default function AdminPage() {
   const [savingStats, setSavingStats] = useState(false);
   const [customBlockedWords, setCustomBlockedWords] = useState<string[]>([]);
   const [commentIdentities, setCommentIdentities] = useState<CommentIdentityBinding[]>([]);
+  const [editingIdentityIpTag, setEditingIdentityIpTag] = useState<string | null>(null);
+  const [editingIdentityName, setEditingIdentityName] = useState('');
+  const [identitySearch, setIdentitySearch] = useState('');
   const [newBlockedWord, setNewBlockedWord] = useState('');
   const [savingBlockedWords, setSavingBlockedWords] = useState(false);
   const [regFilter, setRegFilter] = useState('');
@@ -663,6 +671,37 @@ export default function AdminPage() {
       }
     } catch {
       showToast('Erro de conexão ao liberar vínculo');
+    }
+  };
+
+  const handleSaveEditNickIp = async (ipTag: string) => {
+    const clean = editingIdentityName.trim();
+    if (clean.length < 2) {
+      showToast('Digite um nome válido com pelo menos 2 caracteres.');
+      return;
+    }
+    try {
+      const res = await api('/api/moderation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit_nick',
+          ipTag,
+          newAuthorName: clean,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (Array.isArray(data.identities)) setCommentIdentities(data.identities);
+        setEditingIdentityIpTag(null);
+        setEditingIdentityName('');
+        fetchDashboardData();
+        showToast(`Nome do IP ${ipTag} atualizado para "${clean}"!`);
+      } else {
+        showToast(data.error || 'Erro ao editar nome vinculado');
+      }
+    } catch {
+      showToast('Erro de conexão ao salvar edição do nome');
     }
   };
 
@@ -1413,6 +1452,13 @@ export default function AdminPage() {
               count: allComments.length,
               icon: MessageSquare,
               visible: canAccess('comments'),
+            },
+            {
+              id: 'users' as const,
+              label: 'Usuários & IPs',
+              count: commentIdentities.length,
+              icon: UserCheck,
+              visible: canAccess('users'),
             },
             {
               id: 'access' as const,
@@ -3290,6 +3336,185 @@ export default function AdminPage() {
         )}
 
         {/* ============================================================== */}
+        {/* ABA: USUÁRIOS REGISTRADOS & VÍNCULOS POR IP */}
+        {/* ============================================================== */}
+        {activeTab === 'users' && canAccess('users') && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-950/90 border border-lycoris-900/50 backdrop-blur-md">
+              <div>
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-lycoris-400" />
+                  Usuários Registrados por IP ({commentIdentities.length})
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Todos os membros que já comentaram na galeria ficam registrados aqui com seu identificador único de IP. Você pode editar o nome vinculado, desvincular o IP para permitir que a pessoa escolha outro nome, ou banir o IP.
+                </p>
+              </div>
+
+              <div className="relative w-full sm:w-64 shrink-0">
+                <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nick ou IP #..."
+                  value={identitySearch}
+                  onChange={(e) => setIdentitySearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                />
+              </div>
+            </div>
+
+            {commentIdentities.length === 0 ? (
+              <div className="p-12 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center space-y-2">
+                <UserCheck className="w-9 h-9 text-zinc-600 mx-auto" />
+                <h3 className="font-serif text-base font-bold text-white">
+                  Nenhum usuário vinculado ainda
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Assim que os visitantes comentarem nas fotos da galeria, seus nomes e identificadores de IP aparecerão listados aqui.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-zinc-950/90 border border-zinc-800/90 overflow-hidden backdrop-blur-md shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="text-zinc-400 bg-zinc-900/70 border-b border-zinc-800">
+                      <tr>
+                        <th className="p-3.5 sm:px-5 font-semibold">Identificador do IP</th>
+                        <th className="p-3.5 font-semibold">Nome / Nick Vinculado</th>
+                        <th className="p-3.5 font-semibold">Status</th>
+                        <th className="p-3.5 font-semibold">Última Atualização</th>
+                        <th className="p-3.5 sm:px-5 text-right font-semibold">
+                          Gerenciar Vínculo
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-900">
+                      {commentIdentities
+                        .filter((item) => {
+                          const q = identitySearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (
+                            item.authorName.toLowerCase().includes(q) ||
+                            item.ipTag.toLowerCase().includes(q)
+                          );
+                        })
+                        .map((item) => {
+                          const isEditingThis = editingIdentityIpTag === item.ipTag;
+                          return (
+                            <tr
+                              key={item.ipHash}
+                              className="hover:bg-zinc-900/40 transition-colors"
+                            >
+                              <td className="p-3.5 sm:px-5 whitespace-nowrap">
+                                <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-700 font-mono text-xs text-zinc-200 font-semibold">
+                                  IP {item.ipTag}
+                                </span>
+                              </td>
+
+                              <td className="p-3.5">
+                                {isEditingThis ? (
+                                  <div className="flex items-center gap-2 max-w-xs">
+                                    <input
+                                      type="text"
+                                      maxLength={40}
+                                      value={editingIdentityName}
+                                      onChange={(e) => setEditingIdentityName(e.target.value)}
+                                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-lycoris-500 text-white text-xs focus:outline-none"
+                                      placeholder="Novo nome..."
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEditNickIp(item.ipTag)}
+                                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+                                    >
+                                      Salvar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingIdentityIpTag(null);
+                                        setEditingIdentityName('');
+                                      }}
+                                      className="px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="font-semibold text-white text-sm">
+                                    {item.authorName}
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="p-3.5 whitespace-nowrap">
+                                {item.blocked ? (
+                                  <span className="px-2.5 py-1 rounded-full bg-red-950/90 border border-red-700/70 text-red-300 text-[11px] font-bold">
+                                    IP Banido
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-[11px] font-semibold">
+                                    Vinculado &amp; Ativo
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="p-3.5 text-zinc-400 whitespace-nowrap">
+                                {new Date(item.updatedAt).toLocaleString('pt-BR')}
+                              </td>
+
+                              <td className="p-3.5 sm:px-5 text-right whitespace-nowrap">
+                                <div className="inline-flex items-center justify-end gap-2">
+                                  {!isEditingThis && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingIdentityIpTag(item.ipTag);
+                                        setEditingIdentityName(item.authorName);
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 text-lycoris-400" />
+                                      <span>Editar Nome</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleReleaseNickIp(item.ipTag, item.authorName)
+                                    }
+                                    className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium transition-colors"
+                                    title="Desvincular este nome do IP para que o usuário possa escolher outro"
+                                  >
+                                    Desvincular IP
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleBlockIp(item.ipTag)}
+                                    className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                                      item.blocked
+                                        ? 'bg-emerald-950/70 hover:bg-emerald-900 border-emerald-700 text-emerald-200'
+                                        : 'bg-red-950/70 hover:bg-red-900 border-red-800 text-red-200'
+                                    }`}
+                                  >
+                                    {item.blocked ? 'Desbloquear IP' : 'Banir IP'}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================== */}
         {/* ABA: ACESSOS & SENHAS (EXCLUSIVO ADMIN NÍVEL 2) */}
         {/* ============================================================== */}
         {activeTab === 'access' && isMasterUnlocked && (
@@ -3353,6 +3578,11 @@ export default function AdminPage() {
                       key: 'comments' as AdminModuleKey,
                       title: 'Moderação',
                       desc: 'Excluir comentários e gerenciar palavras bloqueadas.',
+                    },
+                    {
+                      key: 'users' as AdminModuleKey,
+                      title: 'Usuários & IPs',
+                      desc: 'Visualizar nicks vinculados por IP, editar nomes e desvincular/banir IPs.',
                     },
                   ] as const
                 ).map((item) => {
