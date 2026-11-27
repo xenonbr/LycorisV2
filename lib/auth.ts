@@ -357,3 +357,48 @@ export function forbiddenMaster() {
     }
   );
 }
+
+// ============================================================================
+// IDENTIDADE DE COMENTÁRIOS POR IP + COOKIE ASSINADO (PREVENÇÃO DE FALSIFICAÇÃO)
+// ============================================================================
+
+export function computeIpHash(ip: string): string {
+  return createHmac('sha256', `${getSigningSecret()}::ip-identity`)
+    .update(String(ip || 'unknown-ip').trim())
+    .digest('hex')
+    .slice(0, 24);
+}
+
+export function computeIpTag(ipHash: string): string {
+  return `#${String(ipHash || '000000').slice(0, 6).toUpperCase()}`;
+}
+
+export function createSignedNickCookieValue(authorName: string): string {
+  const clean = String(authorName || '').trim();
+  const b64 = Buffer.from(clean, 'utf-8').toString('base64url');
+  const sig = sign(`nick:${b64}`);
+  return `${b64}.${sig}`;
+}
+
+export function verifySignedNickCookieValue(cookieVal?: string | null): string | null {
+  if (!cookieVal) return null;
+  const [b64, sig] = String(cookieVal).split('.');
+  if (!b64 || !sig) return null;
+  if (!safeEqual(sig, sign(`nick:${b64}`))) return null;
+  try {
+    const decoded = Buffer.from(b64, 'base64url').toString('utf-8').trim();
+    return decoded || null;
+  } catch {
+    return null;
+  }
+}
+
+export function parseCookieHeader(request: Request, name: string): string | null {
+  const raw = request.headers.get('cookie') || '';
+  for (const part of raw.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(v.join('='));
+  }
+  return null;
+}
+

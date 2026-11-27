@@ -5,20 +5,93 @@ import {
   forbiddenMaster,
   checkRateLimit,
   tooManyRequests,
+  getClientIp,
+  computeIpHash,
+  computeIpTag,
+  createSignedNickCookieValue,
+  verifySignedNickCookieValue,
+  parseCookieHeader,
 } from '@/lib/auth';
-import { INITIAL_GALLERY } from '@/lib/mockData';
+import { INITIAL_GALLERY, INITIAL_SUPPORTERS } from '@/lib/mockData';
 import { validateCommentInput } from '@/lib/moderation';
+import { CommentIdentityBinding } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-const BUCKET_NAME = 'lycoris-media';
+const PUBLIC_BUCKET = 'lycoris-media';
+const PRIVATE_BUCKET = 'lycoris-private';
 const BLOCKED_WORDS_PATH = 'settings/blocked-words.json';
+const IDENTITIES_PATH = 'settings/comment-identities.json';
+const NICK_COOKIE_NAME = 'lycoris_member_nick';
+
+export interface CommentIdentitiesStore {
+  // Mapa ipHash -> vínculo do usuário
+  byIp: Record<string, CommentIdentityBinding>;
+  // Mapa commentId -> ipHash (para exibir a tag #A1B2C3 e status de bloqueio no painel admin)
+  commentIpMap: Record<string, string>;
+}
+
+let localIdentities: CommentIdentitiesStore = {
+  byIp: {},
+  commentIpMap: {},
+};
+
+function normalizeNick(name: string): string {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+export async function getCommentIdentities(): Promise<CommentIdentitiesStore> {
+  if (isSupabaseConfigured && supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin.storage
+        .from(PRIVATE_BUCKET)
+        .download(IDENTITIES_PATH);
+      if (!error && data) {
+        const parsed = JSON.parse(await data.text());
+        if (parsed && typeof parsed === 'object') {
+          localIdentities = {
+            byIp: parsed.byIp && typeof parsed.byIp === 'object' ? parsed.byIp : {},
+            commentIpMap:
+              parsed.commentIpMap && typeof parsed.commentIpMap === 'object'
+                ? parsed.commentIpMap
+                : {},
+          };
+          return localIdentities;
+        }
+      }
+    } catch {
+      // Usa estado inicial se ainda não existir
+    }
+  }
+  return localIdentities;
+}
+
+export async function saveCommentIdentities(
+  store: CommentIdentitiesStore
+): Promise<void> {
+  localIdentities = store;
+  if (isSupabaseConfigured && supabaseAdmin) {
+    const buffer = Buffer.from(JSON.stringify(store, null, 2), 'utf-8');
+    await supabaseAdmin.storage
+      .from(PRIVATE_BUCKET)
+      .upload(IDENTITIES_PATH, buffer, {
+        contentType: 'application/json',
+        cacheControl: '0',
+        upsert: true,
+      });
+  }
+}
 
 async function getCustomBlockedWords(): Promise<string[]> {
   if (isSupabaseConfigured && supabaseAdmin) {
     try {
       const { data, error } = await supabaseAdmin.storage
-        .from(BUCKET_NAME)
+        .from(PUBLIC_BUCKET)
         .download(BLOCKED_WORDS_PATH);
       if (!error && data) {
         const parsed = JSON.parse(await data.text());
@@ -31,13 +104,57 @@ async function getCustomBlockedWords(): Promise<string[]> {
   return [];
 }
 
+async function getReservedSupporterNames(): Promise<Set<string>> {
+  const reserved = new Set<string>();
+  INITIAL_SUPPORTERS.forEach((s) => reserved.add(normalizeNick(s.name)));
+
+  const client = supabaseAdmin || supabase;
+  if (isSupabaseConfigured && client) {
+    try {
+      const { data } = await client.from('supporters').select('name');
+      if (Array.isArray(data)) {
+        data.forEach((s) => {
+          if (s?.name) reserved.add(normalizeNick(s.name));
+        });
+      }
+    } catch {
+      // ignora
+    }
+  }
+  return reserved;
+}
+
 let localComments = INITIAL_GALLERY.flatMap((img) => img.comments || []);
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const imageId = searchParams.get('imageId');
+  const myIdentity = searchParams.get('myIdentity') === 'true';
+
+  // Endpoint leve para a Galeria descobrir se este IP/dispositivo já possui um nick vinculado
+  if (myIdentity) {
+    const ip = getClientIp(request);
+    const ipHash = computeIpHash(ip);
+    const store = await getCommentIdentities();
+    const binding = store.byIp[ipHash];
+    const cookieNick = verifySignedNickCookieValue(
+      parseCookieHeader(request, NICK_COOKIE_NAME)
+    );
+
+    const lockedName = binding?.authorName || cookieNick || null;
+    return NextResponse.json({
+      lockedName,
+      ipTag: computeIpTag(ipHash),
+      blocked: Boolean(binding?.blocked),
+    });
+  }
+
+  const isAdminMod = await canAccessAdminModule(request, 'comments');
+  const store = isAdminMod ? await getCommentIdentities() : null;
 
   const client = supabaseAdmin || supabase;
+  let items: any[] = localComments;
+
   if (isSupabaseConfigured && client) {
     let query = client.from('comments').select('*').order('created_at', { ascending: false });
     if (imageId) {
@@ -45,18 +162,31 @@ export async function GET(request: Request) {
     }
     const { data, error } = await query;
     if (!error && data) {
-      return NextResponse.json(data);
+      items = data;
     }
+  } else if (imageId) {
+    items = localComments.filter((c) => c.image_id === imageId);
   }
 
-  if (imageId) {
-    return NextResponse.json(localComments.filter((c) => c.image_id === imageId));
+  // Se for o painel de moderação, anexa a tag do IP (#A1B2C3) e se o IP está banido
+  if (isAdminMod && store) {
+    const enriched = items.map((c) => {
+      const ipHash = store.commentIpMap[c.id];
+      const binding = ipHash ? store.byIp[ipHash] : undefined;
+      return {
+        ...c,
+        ip_tag: ipHash ? computeIpTag(ipHash) : undefined,
+        ip_blocked: Boolean(binding?.blocked),
+      };
+    });
+    return NextResponse.json(enriched);
   }
-  return NextResponse.json(localComments);
+
+  return NextResponse.json(items);
 }
 
 export async function POST(request: Request) {
-  const rl = checkRateLimit(request, 'gallery-comment', 10, 60_000);
+  const rl = checkRateLimit(request, 'gallery-comment', 8, 60_000);
   if (!rl.allowed) return tooManyRequests(rl.retryAfterSec);
 
   try {
@@ -67,21 +197,108 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'ID da imagem é obrigatório.' }, { status: 400 });
     }
 
+    const ip = getClientIp(request);
+    const ipHash = computeIpHash(ip);
+    const ipTag = computeIpTag(ipHash);
+    const store = await getCommentIdentities();
+
+    // 1. Verifica se o IP foi bloqueado pela moderação
+    const existingBinding = store.byIp[ipHash];
+    if (existingBinding?.blocked) {
+      return NextResponse.json(
+        {
+          error:
+            'Seu acesso aos comentários foi suspenso pela moderação da comunidade.',
+        },
+        { status: 403 }
+      );
+    }
+
+    // 2. Verifica identidade vinculada por IP ou Cookie assinado do dispositivo
+    const cookieNick = verifySignedNickCookieValue(
+      parseCookieHeader(request, NICK_COOKIE_NAME)
+    );
+    const lockedAuthorName = existingBinding?.authorName || cookieNick;
+    const requestedName = String(author_name || '').trim();
+
+    if (
+      lockedAuthorName &&
+      normalizeNick(requestedName) !== normalizeNick(lockedAuthorName)
+    ) {
+      return NextResponse.json(
+        {
+          error: `Seu dispositivo/IP já está vinculado ao nick "${lockedAuthorName}". Não é permitido trocar de nome para comentar.`,
+          lockedName: lockedAuthorName,
+        },
+        { status: 403 }
+      );
+    }
+
+    const finalAuthorName = lockedAuthorName || requestedName;
+    const normalizedFinal = normalizeNick(finalAuthorName);
+
+    // 3. Verifica se outro IP já registrou esse nick (impede se passar por outro membro)
+    const otherOwner = Object.values(store.byIp).find(
+      (b) => b.ipHash !== ipHash && b.normalizedName === normalizedFinal
+    );
+    if (otherOwner) {
+      return NextResponse.json(
+        {
+          error: `O nick "${finalAuthorName}" já pertence a outro membro da comunidade. Escolha seu próprio nick.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // 4. Se for um novo vínculo, protege também os nomes oficiais de apoiadores/fundadores que ainda não tenham vínculo
+    if (!lockedAuthorName) {
+      const reservedSupporters = await getReservedSupporterNames();
+      if (reservedSupporters.has(normalizedFinal)) {
+        return NextResponse.json(
+          {
+            error: `O nome "${finalAuthorName}" pertence a um Fundador/Apoiador oficial e é protegido contra uso por terceiros.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 5. Validação de conteúdo (palavrões, links, símbolos, tamanho)
     const extraWords = await getCustomBlockedWords();
-    const check = validateCommentInput(author_name, content, extraWords);
+    const check = validateCommentInput(finalAuthorName, content, extraWords);
     if (!check.valid) {
       return NextResponse.json({ error: check.error }, { status: 400 });
+    }
+
+    // 6. Evita flood de comentários idênticos/repetidos pelo mesmo usuário na mesma foto
+    const client = supabaseAdmin || supabase;
+    if (isSupabaseConfigured && client) {
+      const { data: existingInPhoto } = await client
+        .from('comments')
+        .select('id, content')
+        .eq('image_id', image_id)
+        .ilike('author_name', finalAuthorName);
+
+      if (Array.isArray(existingInPhoto) && existingInPhoto.length >= 2) {
+        return NextResponse.json(
+          {
+            error: 'Você já deixou o limite máximo de 2 comentários nesta foto.',
+          },
+          { status: 429 }
+        );
+      }
     }
 
     const newComment = {
       id: crypto.randomUUID(),
       image_id,
-      author_name: author_name.trim(),
+      author_name: finalAuthorName,
       content: content.trim(),
       created_at: new Date().toISOString(),
     };
 
-    const client = supabaseAdmin || supabase;
+    let savedComment: any = newComment;
+
     if (isSupabaseConfigured && client) {
       const { data, error } = await client
         .from('comments')
@@ -92,13 +309,50 @@ export async function POST(request: Request) {
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
-      return NextResponse.json(data, { status: 201 });
+      savedComment = data;
+    } else {
+      localComments.unshift(newComment);
     }
 
-    localComments.unshift(newComment);
-    return NextResponse.json(newComment, { status: 201 });
+    // 7. Salva o vínculo permanente IP <-> Nick e registra o IP do comentário
+    store.byIp[ipHash] = {
+      ipHash,
+      ipTag,
+      authorName: finalAuthorName,
+      normalizedName: normalizedFinal,
+      updatedAt: new Date().toISOString(),
+      blocked: Boolean(existingBinding?.blocked),
+    };
+    store.commentIpMap[savedComment.id] = ipHash;
+    await saveCommentIdentities(store);
+
+    const response = NextResponse.json(
+      {
+        ...savedComment,
+        lockedName: finalAuthorName,
+      },
+      { status: 201 }
+    );
+
+    // Grava Cookie HttpOnly assinado por 1 ano para travar também o navegador
+    response.cookies.set(
+      NICK_COOKIE_NAME,
+      createSignedNickCookieValue(finalAuthorName),
+      {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 365 * 24 * 60 * 60,
+      }
+    );
+
+    return response;
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Erro ao postar comentário' }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || 'Erro ao postar comentário' },
+      { status: 500 }
+    );
   }
 }
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Camera, MessageSquare, Heart, X, Send, User, ArrowRight, Upload } from 'lucide-react';
+import { Camera, MessageSquare, Heart, X, Send, User, ArrowRight, Upload, Lock } from 'lucide-react';
 import { GalleryImage, CommentItem } from '@/lib/types';
 import {
   MAX_COMMENT_LENGTH,
@@ -26,6 +26,8 @@ export default function GallerySection({
   const [activeImage, setActiveImage] = useState<GalleryImage | null>(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [authorName, setAuthorName] = useState('');
+  const [lockedAuthorName, setLockedAuthorName] = useState<string | null>(null);
+  const [isIpBlocked, setIsIpBlocked] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentError, setCommentError] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -58,7 +60,26 @@ export default function GallerySection({
         setLoading(false);
       }
     }
+    async function loadIdentity() {
+      try {
+        const res = await fetch('/api/comments?myIdentity=true', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.lockedName) {
+            setLockedAuthorName(data.lockedName);
+            setAuthorName(data.lockedName);
+          }
+          if (data?.blocked) {
+            setIsIpBlocked(true);
+          }
+        }
+      } catch {
+        // ignora erro de rede
+      }
+    }
+
     loadGallery();
+    loadIdentity();
   }, []);
 
   const openLightbox = async (img: GalleryImage) => {
@@ -178,8 +199,16 @@ export default function GallerySection({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.lockedName) {
+          setLockedAuthorName(data.lockedName);
+          setAuthorName(data.lockedName);
+        }
         setCommentError(data.error || 'Não foi possível enviar o comentário.');
         return;
+      }
+      if (data.lockedName) {
+        setLockedAuthorName(data.lockedName);
+        setAuthorName(data.lockedName);
       }
       setComments((prev) => [data, ...prev]);
       setImages((prev) =>
@@ -396,34 +425,51 @@ export default function GallerySection({
                     </div>
                   )}
                   <div className="space-y-2">
-                    <input
-                      type="text"
-                      required
-                      maxLength={MAX_AUTHOR_LENGTH}
-                      placeholder="Seu nome ou Nick no VRChat..."
-                      value={authorName}
-                      onChange={(e) => {
-                        setCommentError('');
-                        setAuthorName(stripForbiddenChars(e.target.value, true));
-                      }}
-                      className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none"
-                    />
+                    {lockedAuthorName ? (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900/90 border border-lycoris-800/60 text-xs">
+                        <span className="flex items-center gap-1.5 text-zinc-300">
+                          <Lock className="w-3.5 h-3.5 text-lycoris-400 shrink-0" />
+                          <span>Comentando como:</span>
+                          <strong className="text-lycoris-300 font-semibold">{lockedAuthorName}</strong>
+                        </span>
+                        <span className="text-[10px] text-zinc-500">Nick vinculado ao seu IP</span>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        required
+                        disabled={isIpBlocked}
+                        maxLength={MAX_AUTHOR_LENGTH}
+                        placeholder="Escolha seu Nick no VRChat (ficará vinculado ao seu IP)..."
+                        value={authorName}
+                        onChange={(e) => {
+                          setCommentError('');
+                          setAuthorName(stripForbiddenChars(e.target.value, true));
+                        }}
+                        className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none disabled:opacity-50"
+                      />
+                    )}
                     <div className="relative">
                       <textarea
                         required
+                        disabled={isIpBlocked}
                         rows={2}
                         maxLength={MAX_COMMENT_LENGTH}
-                        placeholder="Deixe uma mensagem (apenas texto, máx. 150 caracteres)..."
+                        placeholder={
+                          isIpBlocked
+                            ? 'Seu acesso aos comentários foi suspenso pela moderação.'
+                            : 'Deixe uma mensagem (apenas texto, máx. 150 caracteres)...'
+                        }
                         value={newComment}
                         onChange={(e) => {
                           setCommentError('');
                           setNewComment(stripForbiddenChars(e.target.value, false));
                         }}
-                        className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none resize-none pr-10"
+                        className="w-full px-3 py-2.5 text-base sm:text-xs rounded-lg bg-zinc-900 border border-zinc-800 focus:border-lycoris-500 text-white placeholder-zinc-500 focus:outline-none resize-none pr-10 disabled:opacity-50"
                       />
                       <button
                         type="submit"
-                        disabled={submittingComment || !authorName.trim() || !newComment.trim()}
+                        disabled={isIpBlocked || submittingComment || !authorName.trim() || !newComment.trim()}
                         className="absolute right-2 bottom-3 p-1.5 rounded-md bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-40 text-white transition-colors"
                         title="Enviar comentário"
                       >

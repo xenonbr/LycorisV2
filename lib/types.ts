@@ -20,6 +20,17 @@ export interface CommentItem {
   author_name: string;
   content: string;
   created_at: string;
+  ip_tag?: string;
+  ip_blocked?: boolean;
+}
+
+export interface CommentIdentityBinding {
+  ipHash: string;
+  ipTag: string;
+  authorName: string;
+  normalizedName: string;
+  updatedAt: string;
+  blocked?: boolean;
 }
 
 export interface GalleryImage {

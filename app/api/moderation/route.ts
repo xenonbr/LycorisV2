@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isAdminRequest, canAccessAdminModule, unauthorized, forbiddenMaster } from '@/lib/auth';
+import {
+  isAdminRequest,
+  canAccessAdminModule,
+  unauthorized,
+  forbiddenMaster,
+} from '@/lib/auth';
+import {
+  getCommentIdentities,
+  saveCommentIdentities,
+} from '@/app/api/comments/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,14 +37,55 @@ async function getCustomBlockedWords(): Promise<string[]> {
 
 export async function GET(request: Request) {
   if (!isAdminRequest(request)) return unauthorized();
-  const words = await getCustomBlockedWords();
-  return NextResponse.json({ words });
+  const [words, identitiesStore] = await Promise.all([
+    getCustomBlockedWords(),
+    getCommentIdentities(),
+  ]);
+
+  return NextResponse.json({
+    words,
+    identities: Object.values(identitiesStore.byIp),
+  });
 }
 
 export async function PUT(request: Request) {
   if (!(await canAccessAdminModule(request, 'comments'))) return forbiddenMaster();
   try {
     const body = await request.json();
+
+    // Ação 1: Bloquear / Desbloquear um IP ou liberar vínculo de Nick
+    if (body.action === 'toggle_block_ip' && body.ipTag) {
+      const store = await getCommentIdentities();
+      const entry = Object.values(store.byIp).find((b) => b.ipTag === body.ipTag);
+      if (!entry) {
+        return NextResponse.json({ error: 'Vínculo de IP não encontrado.' }, { status: 404 });
+      }
+      store.byIp[entry.ipHash] = {
+        ...entry,
+        blocked: !entry.blocked,
+        updatedAt: new Date().toISOString(),
+      };
+      await saveCommentIdentities(store);
+      return NextResponse.json({
+        success: true,
+        identities: Object.values(store.byIp),
+      });
+    }
+
+    if (body.action === 'release_nick' && body.ipTag) {
+      const store = await getCommentIdentities();
+      const entry = Object.values(store.byIp).find((b) => b.ipTag === body.ipTag);
+      if (entry) {
+        delete store.byIp[entry.ipHash];
+        await saveCommentIdentities(store);
+      }
+      return NextResponse.json({
+        success: true,
+        identities: Object.values(store.byIp),
+      });
+    }
+
+    // Ação 2: Atualizar lista de palavras bloqueadas
     const rawList: string[] = Array.isArray(body.words) ? body.words : [];
     const cleaned = Array.from(
       new Set(
@@ -64,7 +114,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ words: cleaned });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Erro ao salvar filtro de palavras' },
+      { error: err.message || 'Erro ao salvar configuração de moderação' },
       { status: 500 }
     );
   }

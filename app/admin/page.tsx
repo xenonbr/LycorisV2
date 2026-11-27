@@ -44,6 +44,7 @@ import {
   AdminModuleKey,
   ExtraAdminPassword,
   AdminAccessConfig,
+  CommentIdentityBinding,
 } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
 
@@ -224,6 +225,7 @@ export default function AdminPage() {
   const [sawCompressionStats, setSawCompressionStats] = useState<string | null>(null);
   const [savingStats, setSavingStats] = useState(false);
   const [customBlockedWords, setCustomBlockedWords] = useState<string[]>([]);
+  const [commentIdentities, setCommentIdentities] = useState<CommentIdentityBinding[]>([]);
   const [newBlockedWord, setNewBlockedWord] = useState('');
   const [savingBlockedWords, setSavingBlockedWords] = useState(false);
   const [regFilter, setRegFilter] = useState('');
@@ -482,6 +484,7 @@ export default function AdminPage() {
       if (resMod.ok) {
         const m = await resMod.json();
         if (Array.isArray(m.words)) setCustomBlockedWords(m.words);
+        if (Array.isArray(m.identities)) setCommentIdentities(m.identities);
       }
       if (resSaw.ok) {
         const saw = await resSaw.json();
@@ -619,6 +622,48 @@ export default function AdminPage() {
     const nextList = extraPasswords.filter((p) => p.id !== id);
     setExtraPasswords(nextList);
     await saveAccessSettings({ extraPasswords: nextList }, 'Senha extra removida.');
+  };
+
+  // Gerenciar vínculos de Nick por IP e bloqueio de IP nos comentários
+  const handleToggleBlockIp = async (ipTag: string) => {
+    try {
+      const res = await api('/api/moderation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle_block_ip', ipTag }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (Array.isArray(data.identities)) setCommentIdentities(data.identities);
+        fetchDashboardData();
+        showToast(`Status do IP ${ipTag} atualizado!`);
+      } else {
+        showToast(data.error || 'Erro ao alterar bloqueio do IP');
+      }
+    } catch {
+      showToast('Erro de conexão ao bloquear/desbloquear IP');
+    }
+  };
+
+  const handleReleaseNickIp = async (ipTag: string, nick: string) => {
+    if (!confirm(`Liberar o vínculo entre o IP ${ipTag} e o nick "${nick}"?`)) return;
+    try {
+      const res = await api('/api/moderation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'release_nick', ipTag }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (Array.isArray(data.identities)) setCommentIdentities(data.identities);
+        fetchDashboardData();
+        showToast(`Vínculo de "${nick}" (${ipTag}) liberado!`);
+      } else {
+        showToast(data.error || 'Erro ao liberar vínculo');
+      }
+    } catch {
+      showToast('Erro de conexão ao liberar vínculo');
+    }
   };
 
   // Aprovar ou Recusar Post da Comunidade (Nível 2 de Administração)
@@ -2933,6 +2978,73 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+
+              {/* Lista de Nicks Vinculados por IP (Anti-Falsificação) */}
+              <div className="pt-4 border-t border-zinc-800/80 space-y-2.5">
+                <div>
+                  <span className="block text-[11px] uppercase tracking-wider text-lycoris-400 font-bold">
+                    Identidades Vinculadas por IP ({commentIdentities.length})
+                  </span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                    Cada visitante fica travado ao primeiro nick utilizado no seu IP/dispositivo e não pode se passar por outros membros.
+                  </p>
+                </div>
+
+                {commentIdentities.length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic">
+                    Nenhum vínculo de IP registrado ainda. Assim que alguém comentar, o nick e o ID do IP aparecerão aqui.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {commentIdentities.map((idItem) => (
+                      <div
+                        key={idItem.ipHash}
+                        className="p-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800 flex items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-white truncate">
+                              {idItem.authorName}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-700 text-[10px] font-mono text-zinc-300">
+                              IP {idItem.ipTag}
+                            </span>
+                            {idItem.blocked && (
+                              <span className="px-1.5 py-0.5 rounded bg-red-950 border border-red-700 text-[10px] font-bold text-red-300">
+                                IP Bloqueado
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBlockIp(idItem.ipTag)}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                              idItem.blocked
+                                ? 'bg-emerald-950/70 hover:bg-emerald-900 border-emerald-700 text-emerald-200'
+                                : 'bg-amber-950/70 hover:bg-amber-900 border-amber-700 text-amber-200'
+                            }`}
+                          >
+                            {idItem.blocked ? 'Desbloquear' : 'Banir IP'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleReleaseNickIp(idItem.ipTag, idItem.authorName)
+                            }
+                            title="Destravar nick deste IP"
+                            className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px]"
+                          >
+                            Liberar Nick
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="lg:col-span-7 space-y-4">
@@ -3011,6 +3123,19 @@ export default function AdminPage() {
                                   <span className="font-semibold text-lycoris-400 text-xs">
                                     {comm.author_name}
                                   </span>
+                                  {comm.ip_tag && (
+                                    <span
+                                      title="Identificador único do IP de quem comentou"
+                                      className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${
+                                        comm.ip_blocked
+                                          ? 'bg-red-950/80 border-red-700 text-red-300'
+                                          : 'bg-zinc-900 border-zinc-700 text-zinc-300'
+                                      }`}
+                                    >
+                                      IP {comm.ip_tag}
+                                      {comm.ip_blocked ? ' (Banido)' : ''}
+                                    </span>
+                                  )}
                                   <span className="text-[10px] text-zinc-500">
                                     {new Date(comm.created_at).toLocaleString('pt-BR')}
                                   </span>
@@ -3018,13 +3143,29 @@ export default function AdminPage() {
                                 <p className="text-xs text-zinc-200 break-words">{comm.content}</p>
                               </div>
 
-                              <button
-                                onClick={() => handleDeleteComment(comm.id)}
-                                className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Excluir</span>
-                              </button>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {comm.ip_tag && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleBlockIp(comm.ip_tag!)}
+                                    className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                                      comm.ip_blocked
+                                        ? 'bg-emerald-950/60 hover:bg-emerald-900 border-emerald-800 text-emerald-200'
+                                        : 'bg-amber-950/60 hover:bg-amber-900 border-amber-800 text-amber-200'
+                                    }`}
+                                  >
+                                    {comm.ip_blocked ? 'Desbloquear IP' : 'Banir IP'}
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => handleDeleteComment(comm.id)}
+                                  className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Excluir</span>
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
