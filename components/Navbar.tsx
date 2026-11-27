@@ -77,11 +77,11 @@ export default function Navbar() {
             Parceiros
           </Link>
           <Link
-            href="/sawvr"
-            className="px-3 py-1 rounded-full bg-zinc-900/90 border border-gothic-gold/35 text-gothic-gold hover:bg-gothic-gold/15 hover:border-gothic-gold transition-all flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+            href="/lojas"
+            className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-gothic-gold" />
-            Loja SawVR
+            <ShoppingBag className="w-4 h-4 text-gothic-gold" />
+            Lojas Parceiras
           </Link>
         </nav>
 
@@ -149,12 +149,12 @@ export default function Navbar() {
             <span>Parceiros &amp; Apoiadores</span>
           </Link>
           <Link
-            href="/sawvr"
+            href="/lojas"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 text-gothic-gold font-semibold py-3 px-3.5 rounded-xl bg-zinc-900/90 border border-gothic-gold/35"
+            className="flex items-center gap-3 text-zinc-100 hover:bg-zinc-900 active:text-lycoris-400 font-medium py-3 px-3.5 rounded-xl bg-zinc-950/80 border border-zinc-900"
           >
             <ShoppingBag className="w-4 h-4 text-gothic-gold" />
-            <span>Catálogo SawVR (VR &amp; Eletrônicos)</span>
+            <span>Lojas Parceiras</span>
           </Link>
           <div className="pt-3">
             <a

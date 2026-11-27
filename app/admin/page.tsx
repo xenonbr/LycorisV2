@@ -50,6 +50,7 @@ import {
   EventRegistration,
   HeroStat,
   HomePageContent,
+  PartnerStore,
   SawCatalogItem,
   PendingGalleryPost,
   AdminModuleKey,
@@ -61,6 +62,7 @@ import {
   INITIAL_GALLERY,
   INITIAL_HERO_STATS,
   INITIAL_HOME_CONTENT,
+  INITIAL_PARTNER_STORES,
 } from '@/lib/mockData';
 import {
   SUPPORTER_BADGE_ICONS,
@@ -220,7 +222,7 @@ const ACCESS_MODULE_DEFS: {
   { key: 'submissions', title: 'Aprovar Fotos', desc: 'Aprovar ou recusar fotos enviadas pela comunidade.', category: 'Galeria' },
   { key: 'comments', title: 'Moderação', desc: 'Excluir comentários e gerenciar palavras bloqueadas.', category: 'Galeria' },
   // Divisão 3: Lojas
-  { key: 'sawvr', title: 'Catálogo SawVR', desc: 'Publicar e gerenciar produtos na loja /sawvr.', category: 'Lojas' },
+  { key: 'sawvr', title: 'Lojas Parceiras', desc: 'Criar lojas parceiras, editar o bloco de cada loja e gerenciar produtos.', category: 'Lojas' },
   // Divisão 4: ADM
   { key: 'homepage', title: 'Página Inicial', desc: 'Editar os blocos do Manifesto da Comunidade e do banner principal.', category: 'ADM' },
   { key: 'stats', title: 'Destaques do Topo', desc: 'Editar as 4 caixas de estatísticas do banner inicial.', category: 'ADM' },
@@ -347,6 +349,14 @@ export default function AdminPage() {
   const [uploadingHomeBrandImage, setUploadingHomeBrandImage] = useState(false);
   const [homeBrandCompressionStats, setHomeBrandCompressionStats] = useState<string | null>(null);
   const [sawCatalog, setSawCatalog] = useState<SawCatalogItem[]>([]);
+  const [partnerStores, setPartnerStores] = useState<PartnerStore[]>(INITIAL_PARTNER_STORES);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('sawvr');
+  const [showStoreEditor, setShowStoreEditor] = useState<boolean>(true);
+  const [isCreatingStore, setIsCreatingStore] = useState<boolean>(false);
+  const [storeForm, setStoreForm] = useState<PartnerStore>(INITIAL_PARTNER_STORES[0]);
+  const [savingStore, setSavingStore] = useState<boolean>(false);
+  const [uploadingStoreLogo, setUploadingStoreLogo] = useState<boolean>(false);
+  const [uploadingStoreBanner, setUploadingStoreBanner] = useState<boolean>(false);
   const [sawForm, setSawForm] = useState(EMPTY_SAW_ITEM);
   const [editingSawId, setEditingSawId] = useState<string | null>(null);
   const [uploadingSawImage, setUploadingSawImage] = useState(false);
@@ -599,6 +609,7 @@ export default function AdminPage() {
         resHome,
         resMod,
         resSaw,
+        resStores,
         resSub,
         resAcc,
       ] = await Promise.all([
@@ -611,6 +622,7 @@ export default function AdminPage() {
         api('/api/homepage'),
         api('/api/moderation'),
         api('/api/sawvr'),
+        api('/api/stores'),
         api('/api/gallery/submissions'),
         api('/api/access'),
       ]);
@@ -642,6 +654,17 @@ export default function AdminPage() {
       if (resSaw.ok) {
         const saw = await resSaw.json();
         if (Array.isArray(saw)) setSawCatalog(saw);
+      }
+      if (resStores.ok) {
+        const st = await resStores.json();
+        if (Array.isArray(st) && st.length > 0) {
+          setPartnerStores(st);
+          const currentActive = st.find((s: PartnerStore) => s.id === selectedStoreId) || st[0];
+          setSelectedStoreId(currentActive.id);
+          if (!isCreatingStore) {
+            setStoreForm(currentActive);
+          }
+        }
       }
       if (resSub.ok) {
         const sub = await resSub.json();
@@ -963,23 +986,168 @@ export default function AdminPage() {
     e.preventDefault();
     const editing = editingSawId;
     try {
+      const payload = editing
+        ? { ...sawForm, id: editing, store_id: selectedStoreId }
+        : { ...sawForm, store_id: selectedStoreId };
       const res = await api('/api/sawvr', {
         method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editing ? { ...sawForm, id: editing } : sawForm),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         showToast(data.error || 'Erro ao salvar anúncio');
         return;
       }
-      setSawForm(EMPTY_SAW_ITEM);
+      const activeStore = partnerStores.find((s) => s.id === selectedStoreId);
+      setSawForm({
+        ...EMPTY_SAW_ITEM,
+        contact_url: activeStore?.contact_url || 'https://discord.gg/V5ykbQsBAE',
+      });
       setEditingSawId(null);
       setSawCompressionStats(null);
       await fetchDashboardData();
-      showToast(editing ? 'Anúncio atualizado no catálogo!' : 'Anúncio publicado no catálogo SawVR!');
+      showToast(editing ? 'Anúncio atualizado no catálogo!' : 'Anúncio publicado no catálogo da loja!');
     } catch {
       showToast('Erro ao salvar anúncio');
+    }
+  };
+
+  // Gerenciamento de Lojas Parceiras (Criar, Editar Bloco da Loja e Excluir)
+  const handleSelectPartnerStore = (store: PartnerStore) => {
+    setSelectedStoreId(store.id);
+    setIsCreatingStore(false);
+    setStoreForm(store);
+    setEditingSawId(null);
+    setSawForm({
+      ...EMPTY_SAW_ITEM,
+      contact_url: store.contact_url || 'https://discord.gg/V5ykbQsBAE',
+    });
+  };
+
+  const handleStartNewStore = () => {
+    setIsCreatingStore(true);
+    setShowStoreEditor(true);
+    setStoreForm({
+      id: '',
+      slug: '',
+      name: '',
+      badge: 'Parceiro Oficial • Loja Verificada',
+      tagline: '',
+      description: '',
+      logo_url: '',
+      banner_url: '',
+      contact_url: 'https://discord.gg/',
+      contact_label: 'Falar no Discord',
+      item_contact_label: 'Entrar em Contato',
+      crystal_style: 'gold',
+      created_at: new Date().toISOString(),
+    });
+  };
+
+  const handleStoreLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingStoreLogo(true);
+    try {
+      const compressed = await compressImageFile(file, 512, 0.85);
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'sawvr');
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+      setStoreForm((prev) => ({ ...prev, logo_url: data.url }));
+      showToast('Logo da loja comprimida e enviada!');
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao enviar logo da loja');
+    } finally {
+      setUploadingStoreLogo(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleStoreBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingStoreBanner(true);
+    try {
+      const compressed = await compressImageFile(file, 1280, 0.82);
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'sawvr');
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+      setStoreForm((prev) => ({ ...prev, banner_url: data.url }));
+      showToast('Plano de fundo da loja enviado!');
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao enviar fundo da loja');
+    } finally {
+      setUploadingStoreBanner(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSavePartnerStore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingStore(true);
+    try {
+      const res = await api('/api/stores', {
+        method: isCreatingStore ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(storeForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao salvar informações da loja');
+        return;
+      }
+      setIsCreatingStore(false);
+      if (data && data.id) {
+        setSelectedStoreId(data.id);
+        setStoreForm(data);
+        setSawForm((prev) => ({
+          ...prev,
+          contact_url: data.contact_url || prev.contact_url,
+        }));
+      }
+      await fetchDashboardData();
+      showToast(
+        isCreatingStore
+          ? `Nova loja "${data.name}" criada com sucesso!`
+          : `Bloco da loja "${data.name}" atualizado!`
+      );
+    } catch {
+      showToast('Erro de conexão ao salvar loja');
+    } finally {
+      setSavingStore(false);
+    }
+  };
+
+  const handleDeletePartnerStore = async (store: PartnerStore) => {
+    if (partnerStores.length <= 1) {
+      showToast('Mantenha pelo menos uma loja ativa.');
+      return;
+    }
+    if (!confirm(`Deseja realmente excluir a loja "${store.name}"?`)) return;
+    try {
+      const res = await api('/api/stores?id=' + encodeURIComponent(store.id), {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao excluir loja');
+        return;
+      }
+      const remaining = partnerStores.filter((s) => s.id !== store.id);
+      setPartnerStores(remaining);
+      if (remaining[0]) {
+        handleSelectPartnerStore(remaining[0]);
+      }
+      showToast(`Loja "${store.name}" removida.`);
+    } catch {
+      showToast('Erro ao remover loja');
     }
   };
 
@@ -1745,8 +1913,8 @@ export default function AdminPage() {
               tabs: [
                 {
                   id: 'sawvr' as const,
-                  label: 'SawVR',
-                  count: sawCatalog.length,
+                  label: 'Lojas Parceiras',
+                  count: partnerStores.length,
                   icon: ShoppingBag,
                   goldIcon: true,
                   visible: canAccess('sawvr'),
@@ -3571,277 +3739,714 @@ export default function AdminPage() {
         )}
 
         {/* ============================================================== */}
-        {/* ABA: CATÁLOGO SAWVR (NÍVEL 2) */}
+        {/* ABA: LOJAS PARCEIRAS & CATÁLOGOS DE PRODUTOS */}
         {/* ============================================================== */}
-        {activeTab === 'sawvr' && canAccess('sawvr') && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
-              <div className="flex items-center justify-between">
-                <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-gothic-gold" />
-                  {editingSawId ? 'Editar Anúncio SawVR' : 'Novo Anúncio SawVR'}
-                </h2>
-                <Link
-                  href="/sawvr"
-                  target="_blank"
-                  className="text-[11px] text-gothic-gold hover:underline flex items-center gap-1"
-                >
-                  <span>Abrir /sawvr</span>
-                  <ExternalLink className="w-3 h-3" />
-                </Link>
-              </div>
+        {activeTab === 'sawvr' && canAccess('sawvr') && (() => {
+          const activeStore =
+            partnerStores.find((s) => s.id === selectedStoreId) ||
+            partnerStores[0] ||
+            INITIAL_PARTNER_STORES[0];
+          const storeItems = sawCatalog.filter(
+            (item) => (item.store_id || 'sawvr') === activeStore.id
+          );
 
-              <form onSubmit={handleSaveSawItem} className="space-y-3">
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Nome do Equipamento / Produto</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Meta Quest 3 128GB ou Kit 3x Vive Tracker 3.0"
-                    value={sawForm.title}
-                    onChange={(e) => setSawForm({ ...sawForm, title: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+          return (
+            <div className="space-y-8">
+              {/* Barra Superior de Seleção de Loja Parceira + Botão Nova Loja */}
+              <div className="p-5 rounded-2xl bg-zinc-950/90 border border-gothic-gold/35 backdrop-blur-md space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Preço / Valor</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: R$ 3.490 ou Sob Consulta"
-                      value={sawForm.price}
-                      onChange={(e) => setSawForm({ ...sawForm, price: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs font-semibold focus:outline-none focus:border-gothic-gold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Categoria</label>
-                    <select
-                      value={sawForm.category}
-                      onChange={(e) => setSawForm({ ...sawForm, category: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
-                    >
-                      <option value="Headset VR">Headset VR</option>
-                      <option value="Full Body Tracking">Full Body Tracking</option>
-                      <option value="Acessórios VR">Acessórios VR</option>
-                      <option value="Hardware & PC">Hardware &amp; PC</option>
-                      <option value="Áudio & Periféricos">Áudio &amp; Periféricos</option>
-                      <option value="Outros Eletrônicos">Outros Eletrônicos</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Condição do Item</label>
-                    <select
-                      value={sawForm.condition}
-                      onChange={(e) => setSawForm({ ...sawForm, condition: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
-                    >
-                      <option value="Novo / Lacrado">Novo / Lacrado</option>
-                      <option value="Seminovo">Seminovo</option>
-                      <option value="Sob Encomenda">Sob Encomenda</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Link de Contato (Discord/WhatsApp)</label>
-                    <input
-                      type="url"
-                      required
-                      placeholder="https://discord.gg/..."
-                      value={sawForm.contact_url}
-                      onChange={(e) => setSawForm({ ...sawForm, contact_url: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
-                    />
-                  </div>
-                </div>
-
-                {/* Upload da foto do produto com compressão automática WebP */}
-                <div className="space-y-2 pt-1">
-                  <label className="block text-xs text-zinc-400">
-                    Foto do Produto (Compressão Automática WebP)
-                  </label>
-                  <label className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-gothic-gold/50 hover:border-gothic-gold bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
-                    <Upload className="w-4 h-4 text-gothic-gold" />
-                    <span className="text-xs font-semibold text-zinc-200">
-                      {uploadingSawImage
-                        ? 'Comprimindo e enviando...'
-                        : 'Enviar foto do equipamento do PC'}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploadingSawImage}
-                      onChange={handleSawImageFileChange}
-                      className="hidden"
-                    />
-                  </label>
-
-                  {sawCompressionStats && (
-                    <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                      <span>{sawCompressionStats}</span>
+                    <h2 className="font-serif text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                      <ShoppingBag className="w-5 h-5 text-gothic-gold" />
+                      Gerenciador de Lojas Parceiras ({partnerStores.length})
+                    </h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Selecione uma loja abaixo para editar as informações do bloco da loja e gerenciar os produtos do catálogo dela, ou crie uma nova loja parceira.
                     </p>
-                  )}
+                  </div>
 
-                  <input
-                    type="url"
-                    placeholder="Ou cole a URL da imagem do produto..."
-                    value={sawForm.image_url}
-                    onChange={(e) => setSawForm({ ...sawForm, image_url: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">
-                    Descrição / Especificações
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Detalhes do item, itens inclusos na caixa, garantia, formas de envio..."
-                    value={sawForm.description}
-                    onChange={(e) => setSawForm({ ...sawForm, description: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold resize-none"
-                  />
-                </div>
-
-                <div className="flex items-center gap-4 pt-1">
-                  <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={sawForm.available}
-                      onChange={(e) => setSawForm({ ...sawForm, available: e.target.checked })}
-                      className="w-4 h-4 accent-emerald-500 rounded"
-                    />
-                    <span>Disponível em estoque</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-gothic-gold cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={sawForm.featured}
-                      onChange={(e) => setSawForm({ ...sawForm, featured: e.target.checked })}
-                      className="w-4 h-4 accent-amber-500 rounded"
-                    />
-                    <span>Destacar anúncio</span>
-                  </label>
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="submit"
-                    className="flex-1 py-2.5 rounded-xl bg-gothic-gold hover:bg-amber-400 text-black text-xs font-bold shadow-gold-glow transition-all"
-                  >
-                    {editingSawId ? 'Salvar Alterações' : 'Publicar no Catálogo SawVR'}
-                  </button>
-                  {editingSawId && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href="/lojas"
+                      target="_blank"
+                      className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold inline-flex items-center gap-1.5"
+                    >
+                      <span>Ver Página /lojas</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
                     <button
                       type="button"
-                      onClick={() => {
-                        setEditingSawId(null);
-                        setSawForm(EMPTY_SAW_ITEM);
-                        setSawCompressionStats(null);
-                      }}
-                      className="px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+                      onClick={handleStartNewStore}
+                      className="px-4 py-2 rounded-xl bg-gothic-gold hover:bg-amber-400 text-black text-xs font-bold shadow-gold-glow inline-flex items-center gap-1.5 transition-all"
                     >
-                      Cancelar
+                      <Plus className="w-4 h-4" />
+                      <span>Nova Loja Parceira</span>
                     </button>
-                  )}
+                  </div>
                 </div>
-              </form>
-            </div>
 
-            <div className="lg:col-span-7 space-y-4">
-              <h2 className="font-serif text-lg font-bold text-white">
-                Itens no Catálogo SawVR ({sawCatalog.length})
-              </h2>
-
-              {sawCatalog.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
-                  Nenhum anúncio publicado no catálogo SawVR ainda.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sawCatalog.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        {item.image_url ? (
+                {/* Abas das Lojas Existentes */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {partnerStores.map((st) => {
+                    const isSelected = !isCreatingStore && st.id === activeStore.id;
+                    const count = sawCatalog.filter(
+                      (i) => (i.store_id || 'sawvr') === st.id
+                    ).length;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => handleSelectPartnerStore(st)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition-all ${
+                          isSelected
+                            ? 'bg-gothic-gold/20 border-gothic-gold text-gothic-gold shadow-gold-glow'
+                            : 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
+                        }`}
+                      >
+                        {st.logo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={item.image_url}
-                            alt={item.title}
-                            className="w-14 h-14 rounded-xl object-cover border border-zinc-800 shrink-0"
+                            src={st.logo_url}
+                            alt={st.name}
+                            className="w-4 h-4 rounded object-cover"
                           />
                         ) : (
-                          <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 shrink-0">
-                            <ShoppingBag className="w-5 h-5" />
-                          </div>
+                          <ShoppingBag className="w-3.5 h-3.5 text-gothic-gold" />
                         )}
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-white text-sm truncate">
-                              {item.title}
-                            </span>
-                            <span className="font-serif font-bold text-xs text-gothic-gold">
-                              {item.price}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
-                              {item.category}
-                            </span>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                                item.available
-                                  ? 'bg-emerald-950/80 border border-emerald-700/60 text-emerald-300'
-                                  : 'bg-zinc-900 border border-zinc-700 text-zinc-400'
-                              }`}
-                            >
-                              {item.available ? 'Disponível' : 'Indisponível'}
-                            </span>
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-zinc-400 line-clamp-1">{item.description}</p>
-                          )}
-                        </div>
+                        <span>{st.name}</span>
+                        <span className="px-1.5 py-0.5 rounded bg-black/50 text-[10px] font-bold">
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {isCreatingStore && (
+                    <span className="px-3.5 py-2 rounded-xl text-xs font-bold bg-lycoris-600/20 border border-lycoris-500 text-lycoris-200 inline-flex items-center gap-1.5">
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Criando Nova Loja...</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* BLOCO 1: EDITOR DO CABEÇALHO / BLOCO DA LOJA */}
+              <div className="rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md overflow-hidden">
+                <div className="p-4 sm:px-6 bg-zinc-900/60 border-b border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gothic-gold">
+                      {isCreatingStore ? 'Cadastro de Nova Loja' : `Configurações do Bloco da Loja`}
+                    </span>
+                    <h3 className="font-serif text-base sm:text-lg font-bold text-white">
+                      {isCreatingStore
+                        ? 'Informações da Nova Loja Parceira'
+                        : `Bloco da Loja: ${activeStore.name}`}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {!isCreatingStore && (
+                      <Link
+                        href={`/lojas/${activeStore.slug}`}
+                        target="_blank"
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-gothic-gold/40 text-gothic-gold text-xs font-semibold inline-flex items-center gap-1.5"
+                      >
+                        <span>Abrir /lojas/{activeStore.slug}</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowStoreEditor((prev) => !prev)}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold"
+                    >
+                      {showStoreEditor ? 'Recolher Bloco da Loja' : 'Editar Bloco da Loja'}
+                    </button>
+                  </div>
+                </div>
+
+                {showStoreEditor && (
+                  <form onSubmit={handleSavePartnerStore} className="p-6 space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      <div className="md:col-span-5">
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Nome da Loja (Título Principal)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={80}
+                          placeholder="Ex: SAWVR STORE"
+                          value={storeForm.name}
+                          onChange={(e) =>
+                            setStoreForm({ ...storeForm, name: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs font-bold focus:outline-none focus:border-gothic-gold"
+                        />
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="md:col-span-7">
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Selo Superior do Bloco (Badge)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={100}
+                          placeholder="Ex: Parceiro Oficial • Catálogo VR & Eletrônicos"
+                          value={storeForm.badge}
+                          onChange={(e) =>
+                            setStoreForm({ ...storeForm, badge: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Subtítulo / Especialidade da Loja (linha destacada abaixo do nome)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={160}
+                        placeholder="Ex: Equipamentos de Realidade Virtual, Full Body Tracking, Acessórios & Hardware"
+                        value={storeForm.tagline}
+                        onChange={(e) =>
+                          setStoreForm({ ...storeForm, tagline: e.target.value })
+                        }
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Texto de Apresentação do Bloco da Loja
+                      </label>
+                      <textarea
+                        rows={3}
+                        maxLength={800}
+                        placeholder="Ex: Bem-vindo ao catálogo oficial do nosso parceiro..."
+                        value={storeForm.description}
+                        onChange={(e) =>
+                          setStoreForm({ ...storeForm, description: e.target.value })
+                        }
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs leading-relaxed focus:outline-none focus:border-gothic-gold resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Link Principal de Contato (Discord / Site / WhatsApp)
+                        </label>
+                        <input
+                          type="url"
+                          required
+                          placeholder="https://discord.gg/..."
+                          value={storeForm.contact_url}
+                          onChange={(e) =>
+                            setStoreForm({ ...storeForm, contact_url: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Texto do Botão do Topo da Loja
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={70}
+                          placeholder="Ex: Falar com SawVR no Discord"
+                          value={storeForm.contact_label}
+                          onChange={(e) =>
+                            setStoreForm({ ...storeForm, contact_label: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Texto do Botão nos Cards de Produtos
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={70}
+                          placeholder="Ex: Negociar com SawVR"
+                          value={storeForm.item_contact_label || ''}
+                          onChange={(e) =>
+                            setStoreForm({
+                              ...storeForm,
+                              item_contact_label: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-1">
+                      {/* Logo da Loja */}
+                      <div className="md:col-span-4 space-y-2">
+                        <label className="block text-xs text-zinc-400">
+                          Logo / Ícone da Loja
+                        </label>
+                        <div className="flex items-center gap-3">
+                          {storeForm.logo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={storeForm.logo_url}
+                              alt="Logo"
+                              className="w-12 h-12 rounded-xl object-cover border border-gothic-gold/50 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 shrink-0">
+                              <ShoppingBag className="w-5 h-5" />
+                            </div>
+                          )}
+                          <label className="flex-1 py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 font-semibold cursor-pointer text-center">
+                            {uploadingStoreLogo ? 'Enviando...' : 'Enviar Logo do PC'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={uploadingStoreLogo}
+                              onChange={handleStoreLogoUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Ou cole a URL da logo..."
+                          value={storeForm.logo_url || ''}
+                          onChange={(e) =>
+                            setStoreForm({ ...storeForm, logo_url: e.target.value })
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+
+                      {/* Banner de Fundo Desfocado da Loja */}
+                      <div className="md:col-span-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs text-zinc-400">
+                            Fundo Desfocado do Bloco (Opcional)
+                          </label>
+                          {storeForm.banner_url && (
+                            <button
+                              type="button"
+                              onClick={() => setStoreForm({ ...storeForm, banner_url: '' })}
+                              className="text-[11px] text-red-400 hover:underline"
+                            >
+                              Remover
+                            </button>
+                          )}
+                        </div>
+                        <label className="block py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-dashed border-gothic-gold/40 text-xs text-zinc-200 font-semibold cursor-pointer text-center">
+                          {uploadingStoreBanner
+                            ? 'Comprimindo...'
+                            : 'Enviar Imagem de Fundo (WebP)'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingStoreBanner}
+                            onChange={handleStoreBannerUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ou cole a URL do fundo..."
+                          value={storeForm.banner_url || ''}
+                          onChange={(e) =>
+                            setStoreForm({ ...storeForm, banner_url: e.target.value })
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+
+                      {/* Cor Cristal Glass do Bloco da Loja */}
+                      <div className="md:col-span-4 space-y-2">
+                        <label className="block text-xs text-zinc-400">
+                          Cor Cristal Glass do Bloco da Loja
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {SUPPORTER_COLOR_OPTIONS.map((opt) => {
+                            const isSelected =
+                              (storeForm.crystal_style || 'gold') === opt.key;
+                            return (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                onClick={() =>
+                                  setStoreForm({ ...storeForm, crystal_style: opt.key })
+                                }
+                                className={`py-2 px-2 rounded-xl border text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                  isSelected
+                                    ? opt.activeClass
+                                    : 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                                }`}
+                              >
+                                <span
+                                  className={`w-2 h-2 rounded-full shrink-0 ${opt.dotClass}`}
+                                />
+                                <span>{opt.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-800/80">
+                      <div>
+                        {!isCreatingStore && partnerStores.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePartnerStore(activeStore)}
+                            className="px-3.5 py-2 rounded-xl bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Excluir esta Loja</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isCreatingStore && (
+                          <button
+                            type="button"
+                            onClick={() => handleSelectPartnerStore(activeStore)}
+                            className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+                          >
+                            Cancelar
+                          </button>
+                        )}
                         <button
-                          type="button"
-                          onClick={() => handleToggleSawAvailable(item)}
-                          className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs"
-                          title="Alternar disponibilidade"
+                          type="submit"
+                          disabled={savingStore}
+                          className="px-6 py-2.5 rounded-xl bg-gothic-gold hover:bg-amber-400 disabled:opacity-50 text-black text-xs font-bold shadow-gold-glow transition-all"
                         >
-                          {item.available ? 'Esgotar' : 'Ativar'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEditSawItem(item)}
-                          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSawItem(item.id)}
-                          title="Remover anúncio"
-                          className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/40 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                          {savingStore
+                            ? 'Salvando...'
+                            : isCreatingStore
+                            ? 'Criar Loja Parceira'
+                            : 'Salvar Informações do Bloco da Loja'}
                         </button>
                       </div>
                     </div>
-                  ))}
+                  </form>
+                )}
+              </div>
+
+              {/* BLOCO 2: PRODUTOS / CATÁLOGO DA LOJA SELECIONADA */}
+              {!isCreatingStore && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  <div className="lg:col-span-5 p-6 rounded-2xl bg-zinc-950/85 border border-zinc-800/90 backdrop-blur-md space-y-4 h-fit">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
+                        <Plus className="w-4 h-4 text-gothic-gold" />
+                        {editingSawId
+                          ? `Editar Produto (${activeStore.name})`
+                          : `Novo Produto em ${activeStore.name}`}
+                      </h2>
+                    </div>
+
+                    <form onSubmit={handleSaveSawItem} className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Nome do Produto / Serviço
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: Meta Quest 3 128GB, Avatar Custom, Comissão..."
+                          value={sawForm.title}
+                          onChange={(e) => setSawForm({ ...sawForm, title: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-zinc-400 mb-1">Preço / Valor</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ex: R$ 3.490 ou Sob Consulta"
+                            value={sawForm.price}
+                            onChange={(e) => setSawForm({ ...sawForm, price: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs font-semibold focus:outline-none focus:border-gothic-gold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-zinc-400 mb-1">Categoria</label>
+                          <input
+                            type="text"
+                            required
+                            list="store-categories-list"
+                            placeholder="Ex: Headset VR, Avatar, Acessório..."
+                            value={sawForm.category}
+                            onChange={(e) => setSawForm({ ...sawForm, category: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                          />
+                          <datalist id="store-categories-list">
+                            <option value="Headset VR" />
+                            <option value="Full Body Tracking" />
+                            <option value="Acessórios VR" />
+                            <option value="Hardware & PC" />
+                            <option value="Áudio & Periféricos" />
+                            <option value="Avatares 3D" />
+                            <option value="Assets & Roupas" />
+                            <option value="Comissões & Arte" />
+                            <option value="Outros" />
+                          </datalist>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-zinc-400 mb-1">
+                            Condição / Modalidade
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            list="store-conditions-list"
+                            value={sawForm.condition}
+                            onChange={(e) => setSawForm({ ...sawForm, condition: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                          />
+                          <datalist id="store-conditions-list">
+                            <option value="Novo / Lacrado" />
+                            <option value="Seminovo" />
+                            <option value="Sob Encomenda" />
+                            <option value="Entrega Digital" />
+                          </datalist>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-zinc-400 mb-1">
+                            Link de Contato (Discord/Site)
+                          </label>
+                          <input
+                            type="url"
+                            required
+                            placeholder="https://discord.gg/..."
+                            value={sawForm.contact_url}
+                            onChange={(e) =>
+                              setSawForm({ ...sawForm, contact_url: e.target.value })
+                            }
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Upload da foto do produto com compressão automática WebP */}
+                      <div className="space-y-2 pt-1">
+                        <label className="block text-xs text-zinc-400">
+                          Foto do Produto (Compressão Automática WebP)
+                        </label>
+                        <label className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-gothic-gold/50 hover:border-gothic-gold bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-colors text-center">
+                          <Upload className="w-4 h-4 text-gothic-gold" />
+                          <span className="text-xs font-semibold text-zinc-200">
+                            {uploadingSawImage
+                              ? 'Comprimindo e enviando...'
+                              : 'Enviar foto do produto do PC'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingSawImage}
+                            onChange={handleSawImageFileChange}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {sawCompressionStats && (
+                          <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>{sawCompressionStats}</span>
+                          </p>
+                        )}
+
+                        <input
+                          type="url"
+                          placeholder="Ou cole a URL da imagem do produto..."
+                          value={sawForm.image_url}
+                          onChange={(e) =>
+                            setSawForm({ ...sawForm, image_url: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          Descrição / Especificações
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Detalhes do item, especificações, formas de entrega..."
+                          value={sawForm.description}
+                          onChange={(e) =>
+                            setSawForm({ ...sawForm, description: e.target.value })
+                          }
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold resize-none"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-4 pt-1">
+                        <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={sawForm.available}
+                            onChange={(e) =>
+                              setSawForm({ ...sawForm, available: e.target.checked })
+                            }
+                            className="w-4 h-4 accent-emerald-500 rounded"
+                          />
+                          <span>Disponível em estoque</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-gothic-gold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={sawForm.featured}
+                            onChange={(e) =>
+                              setSawForm({ ...sawForm, featured: e.target.checked })
+                            }
+                            className="w-4 h-4 accent-amber-500 rounded"
+                          />
+                          <span>Destacar anúncio</span>
+                        </label>
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="submit"
+                          className="flex-1 py-2.5 rounded-xl bg-gothic-gold hover:bg-amber-400 text-black text-xs font-bold shadow-gold-glow transition-all"
+                        >
+                          {editingSawId
+                            ? 'Salvar Alterações do Produto'
+                            : `Publicar em ${activeStore.name}`}
+                        </button>
+                        {editingSawId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSawId(null);
+                              setSawForm({
+                                ...EMPTY_SAW_ITEM,
+                                contact_url:
+                                  activeStore.contact_url || 'https://discord.gg/V5ykbQsBAE',
+                              });
+                              setSawCompressionStats(null);
+                            }}
+                            className="px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+
+                  <div className="lg:col-span-7 space-y-4">
+                    <h2 className="font-serif text-lg font-bold text-white">
+                      Produtos em {activeStore.name} ({storeItems.length})
+                    </h2>
+
+                    {storeItems.length === 0 ? (
+                      <div className="p-8 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-center text-zinc-500 text-xs">
+                        Nenhum produto publicado no catálogo de {activeStore.name} ainda.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {storeItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              {item.image_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={item.image_url}
+                                  alt={item.title}
+                                  className="w-14 h-14 rounded-xl object-cover border border-zinc-800 shrink-0"
+                                />
+                              ) : (
+                                <div className="w-14 h-14 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 shrink-0">
+                                  <ShoppingBag className="w-5 h-5" />
+                                </div>
+                              )}
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-semibold text-white text-sm truncate">
+                                    {item.title}
+                                  </span>
+                                  <span className="font-serif font-bold text-xs text-gothic-gold">
+                                    {item.price}
+                                  </span>
+                                  <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
+                                    {item.category}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                                      item.available
+                                        ? 'bg-emerald-950/80 border border-emerald-700/60 text-emerald-300'
+                                        : 'bg-zinc-900 border border-zinc-700 text-zinc-400'
+                                    }`}
+                                  >
+                                    {item.available ? 'Disponível' : 'Indisponível'}
+                                  </span>
+                                </div>
+                                {item.description && (
+                                  <p className="text-xs text-zinc-400 line-clamp-1">
+                                    {item.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSawAvailable(item)}
+                                className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs"
+                                title="Alternar disponibilidade"
+                              >
+                                {item.available ? 'Esgotar' : 'Ativar'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditSawItem(item)}
+                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSawItem(item.id)}
+                                title="Remover anúncio"
+                                className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/40 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ============================================================== */}
         {/* ABA 3: MODERAÇÃO DE COMENTÁRIOS */}

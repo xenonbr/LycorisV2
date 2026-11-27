@@ -66,8 +66,16 @@ function sanitizeImageUrl(raw?: string): string {
   return '';
 }
 
-export async function GET() {
-  const items = await getCatalogItems();
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const storeId = searchParams.get('storeId');
+  const items = (await getCatalogItems()).map((item) => ({
+    ...item,
+    store_id: item.store_id || 'sawvr',
+  }));
+  if (storeId) {
+    return NextResponse.json(items.filter((i) => (i.store_id || 'sawvr') === storeId));
+  }
   return NextResponse.json(items);
 }
 
@@ -77,6 +85,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const title = String(body.title || '').trim();
     const price = String(body.price || '').trim();
+    const store_id = String(body.store_id || 'sawvr').trim() || 'sawvr';
 
     if (!title || !price) {
       return NextResponse.json(
@@ -87,6 +96,7 @@ export async function POST(request: Request) {
 
     const newItem: SawCatalogItem = {
       id: crypto.randomUUID(),
+      store_id,
       title,
       description: String(body.description || '').trim(),
       price,
@@ -126,6 +136,10 @@ export async function PUT(request: Request) {
       if (item.id !== body.id) return item;
       updatedItem = {
         ...item,
+        store_id:
+          body.store_id !== undefined
+            ? String(body.store_id).trim() || 'sawvr'
+            : item.store_id || 'sawvr',
         title: body.title !== undefined ? String(body.title).trim() : item.title,
         description:
           body.description !== undefined ? String(body.description).trim() : item.description,

@@ -1,4 +1,32 @@
-import { VRChatEvent, GalleryImage, Supporter, HeroStat, HomePageContent } from './types';
+import {
+  VRChatEvent,
+  GalleryImage,
+  Supporter,
+  HeroStat,
+  HomePageContent,
+  PartnerStore,
+} from './types';
+
+export const INITIAL_PARTNER_STORES: PartnerStore[] = [
+  {
+    id: 'sawvr',
+    slug: 'sawvr',
+    name: 'SAWVR STORE',
+    badge: 'Parceiro Oficial • Catálogo VR & Eletrônicos',
+    tagline: 'Equipamentos de Realidade Virtual, Full Body Tracking, Acessórios & Hardware',
+    description:
+      'Bem-vindo ao catálogo oficial do nosso parceiro SawVR. Confira abaixo os equipamentos disponíveis à pronta entrega ou sob encomenda. Para negociar, tirar dúvidas ou finalizar a compra, basta clicar em Entrar em Contato com SawVR no anúncio desejado.',
+    logo_url:
+      'https://ryeiymuisgdqglkvxgbs.supabase.co/storage/v1/object/public/lycoris-media/supporters/1795626019406-e6468f2a.webp',
+    banner_url: '',
+    contact_url: 'https://discord.gg/V5ykbQsBAE',
+    contact_label: 'Falar com SawVR no Discord',
+    item_contact_label: 'Negociar com SawVR',
+    crystal_style: 'gold',
+    sort_order: 0,
+    created_at: '2026-01-01T00:00:00.000Z',
+  },
+];
 
 export const INITIAL_HERO_STATS: HeroStat[] = [
   { id: 'stat-1', value: '1.2K+', label: 'Membros Ativos', color: 'lycoris-400' },

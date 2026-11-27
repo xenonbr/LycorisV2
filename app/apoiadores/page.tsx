@@ -342,7 +342,7 @@ export default function ApoiadoresPage() {
 
                     {isSawPartner && (
                       <Link
-                        href="/sawvr"
+                        href="/lojas/sawvr"
                         className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gothic-gold/15 hover:bg-gothic-gold/25 border border-gothic-gold/40 text-gothic-gold text-xs font-semibold transition-colors"
                       >
                         <ShoppingBag className="w-3.5 h-3.5" />

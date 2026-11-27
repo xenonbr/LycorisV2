@@ -117,8 +117,26 @@ export interface HomePageContent {
   brandSubtitle: string;
 }
 
+export interface PartnerStore {
+  id: string;
+  slug: string;
+  name: string;
+  badge: string;
+  tagline: string;
+  description: string;
+  logo_url?: string;
+  banner_url?: string;
+  contact_url: string;
+  contact_label: string;
+  item_contact_label?: string;
+  crystal_style?: SupporterCrystalStyle;
+  sort_order?: number;
+  created_at: string;
+}
+
 export interface SawCatalogItem {
   id: string;
+  store_id?: string;
   title: string;
   description: string;
   price: string;
