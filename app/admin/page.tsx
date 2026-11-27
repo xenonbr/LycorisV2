@@ -221,9 +221,7 @@ const ACCESS_MODULE_DEFS: {
   { key: 'gallery', title: 'Galeria de Fotos', desc: 'Publicar fotos, reordenar e ocultar imagens.', category: 'Galeria' },
   { key: 'submissions', title: 'Aprovar Fotos', desc: 'Aprovar ou recusar fotos enviadas pela comunidade.', category: 'Galeria' },
   { key: 'comments', title: 'Moderação', desc: 'Excluir comentários e gerenciar palavras bloqueadas.', category: 'Galeria' },
-  // Divisão 3: Lojas
-  { key: 'sawvr', title: 'Lojas Parceiras', desc: 'Criar lojas parceiras, editar o bloco de cada loja e gerenciar produtos.', category: 'Lojas' },
-  // Divisão 4: ADM
+  // Divisão 4: ADM (As Lojas são geradas dinamicamente, uma caixinha individual por loja!)
   { key: 'homepage', title: 'Página Inicial', desc: 'Editar os blocos do Manifesto da Comunidade e do banner principal.', category: 'ADM' },
   { key: 'stats', title: 'Destaques do Topo', desc: 'Editar as 4 caixas de estatísticas do banner inicial.', category: 'ADM' },
   { key: 'supporters', title: 'Apoiadores', desc: 'Gerenciar apoiadores, fundos e destaques Cristal Glass.', category: 'ADM' },
@@ -331,6 +329,21 @@ export default function AdminPage() {
 
   const canAccess = (mod: AdminModuleKey) =>
     isMasterUnlocked || Boolean(level1Modules[mod]);
+
+  const isStoreEnabledInModules = (
+    mods: Record<string, boolean> | undefined,
+    storeId: string
+  ): boolean => {
+    if (!mods) return false;
+    const storeKey = `store:${storeId}`;
+    if (mods[storeKey] !== undefined) return Boolean(mods[storeKey]);
+    return storeId === 'sawvr' && Boolean(mods.sawvr);
+  };
+
+  const canAccessStore = (storeId: string): boolean => {
+    if (isMasterUnlocked) return true;
+    return isStoreEnabledInModules(level1Modules, storeId);
+  };
 
   // Estados de dados
   const [events, setEvents] = useState<VRChatEvent[]>(INITIAL_EVENTS);
@@ -655,9 +668,11 @@ export default function AdminPage() {
         const saw = await resSaw.json();
         if (Array.isArray(saw)) setSawCatalog(saw);
       }
+      let loadedStores: PartnerStore[] = partnerStores;
       if (resStores.ok) {
         const st = await resStores.json();
         if (Array.isArray(st) && st.length > 0) {
+          loadedStores = st;
           setPartnerStores(st);
           const currentActive = st.find((s: PartnerStore) => s.id === selectedStoreId) || st[0];
           setSelectedStoreId(currentActive.id);
@@ -676,11 +691,32 @@ export default function AdminPage() {
           const nextMods = { ...level1Modules, ...acc.myModules };
           setLevel1Modules(nextMods);
           if (!sessionStorage.getItem(MASTER_TOKEN_KEY)) {
-            const firstAvailable = ACCESS_MODULE_DEFS.map((d) => d.key).find((k) =>
-              Boolean(nextMods[k])
+            const firstAllowedStore = loadedStores.find((st) =>
+              isStoreEnabledInModules(nextMods, st.id)
             );
-            if (firstAvailable && !nextMods[activeTab as AdminModuleKey]) {
-              setActiveTab(firstAvailable);
+            const currentTabAllowed =
+              activeTab === 'sawvr'
+                ? Boolean(firstAllowedStore)
+                : Boolean(nextMods[activeTab as AdminModuleKey]);
+
+            if (!currentTabAllowed) {
+              const firstFixed = ACCESS_MODULE_DEFS.map((d) => d.key).find((k) =>
+                Boolean(nextMods[k])
+              );
+              if (firstFixed) {
+                setActiveTab(firstFixed as any);
+              } else if (firstAllowedStore) {
+                setActiveTab('sawvr');
+                setSelectedStoreId(firstAllowedStore.id);
+                setStoreForm(firstAllowedStore);
+              }
+            } else if (
+              activeTab === 'sawvr' &&
+              firstAllowedStore &&
+              !isStoreEnabledInModules(nextMods, selectedStoreId)
+            ) {
+              setSelectedStoreId(firstAllowedStore.id);
+              setStoreForm(firstAllowedStore);
             }
           }
         }
@@ -729,19 +765,47 @@ export default function AdminPage() {
     }
   };
 
+  const allPermissionDefs: {
+    key: AdminModuleKey;
+    title: string;
+    desc: string;
+    category: AdminCategoryName;
+    storeId?: string;
+  }[] = [
+    ...ACCESS_MODULE_DEFS,
+    ...partnerStores.map((st) => ({
+      key: `store:${st.id}` as AdminModuleKey,
+      title: `Loja: ${st.name}`,
+      desc: `Editar o bloco de informações e gerenciar os produtos exclusivos da loja ${st.name}.`,
+      category: 'Lojas' as AdminCategoryName,
+      storeId: st.id,
+    })),
+  ];
+
   const handleToggleAccountModule = async (accountId: string, modKey: AdminModuleKey) => {
-    const updated = accounts.map((a) =>
-      a.id === accountId
-        ? { ...a, modules: { ...a.modules, [modKey]: !a.modules[modKey] } }
-        : a
-    );
+    const updated = accounts.map((a) => {
+      if (a.id !== accountId) return a;
+      const currentVal = modKey.startsWith('store:')
+        ? isStoreEnabledInModules(a.modules, modKey.slice(6))
+        : Boolean(a.modules[modKey]);
+      const nextVal = !currentVal;
+      const nextModules: Record<AdminModuleKey, boolean> = {
+        ...a.modules,
+        [modKey]: nextVal,
+      };
+      if (modKey === 'store:sawvr') {
+        nextModules.sawvr = nextVal;
+      }
+      return { ...a, modules: nextModules };
+    });
     setAccounts(updated);
     const acc = updated.find((a) => a.id === accountId);
+    const def = allPermissionDefs.find((d) => d.key === modKey);
     await saveAccessSettings(
       { accounts: updated },
       acc?.modules[modKey]
-        ? `Módulo liberado para "${acc?.label}"!`
-        : `Módulo removido de "${acc?.label}"!`
+        ? `"${def?.title || modKey}" liberado para "${acc?.label}"!`
+        : `"${def?.title || modKey}" removido de "${acc?.label}"!`
     );
   };
 
@@ -750,9 +814,9 @@ export default function AdminPage() {
       a.id === accountId
         ? {
             ...a,
-            modules: ACCESS_MODULE_DEFS.reduce(
+            modules: allPermissionDefs.reduce(
               (acc, d) => ({ ...acc, [d.key]: value }),
-              {} as Record<AdminModuleKey, boolean>
+              { sawvr: value } as Record<AdminModuleKey, boolean>
             ),
           }
         : a
@@ -1911,13 +1975,23 @@ export default function AdminPage() {
               category: 'Lojas',
               badgeColor: 'text-gothic-gold border-gothic-gold/40 bg-amber-950/40',
               tabs: [
-                {
-                  id: 'sawvr' as const,
-                  label: 'Lojas Parceiras',
-                  count: partnerStores.length,
+                ...partnerStores.map((st) => ({
+                  id: `store-tab:${st.id}` as const,
+                  label: st.name,
+                  count: sawCatalog.filter((i) => (i.store_id || 'sawvr') === st.id).length,
                   icon: ShoppingBag,
                   goldIcon: true,
-                  visible: canAccess('sawvr'),
+                  visible: canAccessStore(st.id),
+                  storeObj: st,
+                })),
+                {
+                  id: 'store-tab:new' as const,
+                  label: '+ Nova Loja',
+                  count: null as number | null,
+                  icon: Plus,
+                  goldIcon: true,
+                  visible: isMasterUnlocked,
+                  isNewStoreBtn: true,
                 },
               ],
             },
@@ -1981,12 +2055,28 @@ export default function AdminPage() {
                 </span>
                 {group.visibleTabs.map((tab) => {
                   const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
+                  const storeObj = (tab as any).storeObj as PartnerStore | undefined;
+                  const isNewStoreBtn = Boolean((tab as any).isNewStoreBtn);
+                  const isActive = storeObj
+                    ? activeTab === 'sawvr' && !isCreatingStore && selectedStoreId === storeObj.id
+                    : isNewStoreBtn
+                    ? activeTab === 'sawvr' && isCreatingStore
+                    : activeTab === tab.id;
                   return (
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => {
+                        if (storeObj) {
+                          setActiveTab('sawvr');
+                          handleSelectPartnerStore(storeObj);
+                        } else if (isNewStoreBtn) {
+                          setActiveTab('sawvr');
+                          handleStartNewStore();
+                        } else {
+                          setActiveTab(tab.id as any);
+                        }
+                      }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all whitespace-nowrap ${
                         isActive
                           ? 'bg-lycoris-600/20 border border-lycoris-500/70 text-lycoris-200 shadow-lycoris-glow'
@@ -2003,17 +2093,19 @@ export default function AdminPage() {
                         }`}
                       />
                       <span>{tab.label}</span>
-                      <span
-                        className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-none ${
-                          (tab as any).alertBadge
-                            ? 'bg-lycoris-600 text-white animate-pulse'
-                            : isActive
-                            ? 'bg-lycoris-950/90 text-lycoris-300 border border-lycoris-700/50'
-                            : 'bg-zinc-800/80 text-zinc-400'
-                        }`}
-                      >
-                        {tab.count}
-                      </span>
+                      {tab.count !== null && tab.count !== undefined && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-none ${
+                            (tab as any).alertBadge
+                              ? 'bg-lycoris-600 text-white animate-pulse'
+                              : isActive
+                              ? 'bg-lycoris-950/90 text-lycoris-300 border border-lycoris-700/50'
+                              : 'bg-zinc-800/80 text-zinc-400'
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -3741,93 +3833,102 @@ export default function AdminPage() {
         {/* ============================================================== */}
         {/* ABA: LOJAS PARCEIRAS & CATÁLOGOS DE PRODUTOS */}
         {/* ============================================================== */}
-        {activeTab === 'sawvr' && canAccess('sawvr') && (() => {
-          const activeStore =
-            partnerStores.find((s) => s.id === selectedStoreId) ||
-            partnerStores[0] ||
-            INITIAL_PARTNER_STORES[0];
-          const storeItems = sawCatalog.filter(
-            (item) => (item.store_id || 'sawvr') === activeStore.id
-          );
+        {activeTab === 'sawvr' &&
+          (isMasterUnlocked || partnerStores.some((st) => canAccessStore(st.id))) &&
+          (() => {
+            const accessibleStores = partnerStores.filter((st) => canAccessStore(st.id));
+            const activeStore =
+              accessibleStores.find((s) => s.id === selectedStoreId) ||
+              accessibleStores[0] ||
+              INITIAL_PARTNER_STORES[0];
+            const storeItems = sawCatalog.filter(
+              (item) => (item.store_id || 'sawvr') === activeStore.id
+            );
 
-          return (
-            <div className="space-y-8">
-              {/* Barra Superior de Seleção de Loja Parceira + Botão Nova Loja */}
-              <div className="p-5 rounded-2xl bg-zinc-950/90 border border-gothic-gold/35 backdrop-blur-md space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="font-serif text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                      <ShoppingBag className="w-5 h-5 text-gothic-gold" />
-                      Gerenciador de Lojas Parceiras ({partnerStores.length})
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      Selecione uma loja abaixo para editar as informações do bloco da loja e gerenciar os produtos do catálogo dela, ou crie uma nova loja parceira.
-                    </p>
-                  </div>
+            return (
+              <div className="space-y-8">
+                {/* Barra Superior de Seleção de Loja Parceira + Botão Nova Loja */}
+                <div className="p-5 rounded-2xl bg-zinc-950/90 border border-gothic-gold/35 backdrop-blur-md space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-serif text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                        <ShoppingBag className="w-5 h-5 text-gothic-gold" />
+                        {isMasterUnlocked
+                          ? `Gerenciador de Lojas Parceiras (${accessibleStores.length})`
+                          : `Painel da Loja: ${activeStore.name}`}
+                      </h2>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        {isMasterUnlocked
+                          ? 'Selecione uma loja abaixo para editar as informações do bloco da loja e gerenciar os produtos do catálogo dela, ou crie uma nova loja parceira.'
+                          : 'Personalize as informações do bloco da sua loja e gerencie os produtos do seu catálogo.'}
+                      </p>
+                    </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Link
-                      href="/lojas"
-                      target="_blank"
-                      className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold inline-flex items-center gap-1.5"
-                    >
-                      <span>Ver Página /lojas</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={handleStartNewStore}
-                      className="px-4 py-2 rounded-xl bg-gothic-gold hover:bg-amber-400 text-black text-xs font-bold shadow-gold-glow inline-flex items-center gap-1.5 transition-all"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Nova Loja Parceira</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Abas das Lojas Existentes */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {partnerStores.map((st) => {
-                    const isSelected = !isCreatingStore && st.id === activeStore.id;
-                    const count = sawCatalog.filter(
-                      (i) => (i.store_id || 'sawvr') === st.id
-                    ).length;
-                    return (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => handleSelectPartnerStore(st)}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition-all ${
-                          isSelected
-                            ? 'bg-gothic-gold/20 border-gothic-gold text-gothic-gold shadow-gold-glow'
-                            : 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
-                        }`}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        href="/lojas"
+                        target="_blank"
+                        className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold inline-flex items-center gap-1.5"
                       >
-                        {st.logo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={st.logo_url}
-                            alt={st.name}
-                            className="w-4 h-4 rounded object-cover"
-                          />
-                        ) : (
-                          <ShoppingBag className="w-3.5 h-3.5 text-gothic-gold" />
-                        )}
-                        <span>{st.name}</span>
-                        <span className="px-1.5 py-0.5 rounded bg-black/50 text-[10px] font-bold">
-                          {count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                  {isCreatingStore && (
-                    <span className="px-3.5 py-2 rounded-xl text-xs font-bold bg-lycoris-600/20 border border-lycoris-500 text-lycoris-200 inline-flex items-center gap-1.5">
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Criando Nova Loja...</span>
-                    </span>
-                  )}
+                        <span>Ver Página /lojas</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+                      {isMasterUnlocked && (
+                        <button
+                          type="button"
+                          onClick={handleStartNewStore}
+                          className="px-4 py-2 rounded-xl bg-gothic-gold hover:bg-amber-400 text-black text-xs font-bold shadow-gold-glow inline-flex items-center gap-1.5 transition-all"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Nova Loja Parceira</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Abas das Lojas Liberadas para esta Conta */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {accessibleStores.map((st) => {
+                      const isSelected = !isCreatingStore && st.id === activeStore.id;
+                      const count = sawCatalog.filter(
+                        (i) => (i.store_id || 'sawvr') === st.id
+                      ).length;
+                      return (
+                        <button
+                          key={st.id}
+                          type="button"
+                          onClick={() => handleSelectPartnerStore(st)}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition-all ${
+                            isSelected
+                              ? 'bg-gothic-gold/20 border-gothic-gold text-gothic-gold shadow-gold-glow'
+                              : 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
+                          }`}
+                        >
+                          {st.logo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={st.logo_url}
+                              alt={st.name}
+                              className="w-4 h-4 rounded object-cover"
+                            />
+                          ) : (
+                            <ShoppingBag className="w-3.5 h-3.5 text-gothic-gold" />
+                          )}
+                          <span>{st.name}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-black/50 text-[10px] font-bold">
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {isCreatingStore && isMasterUnlocked && (
+                      <span className="px-3.5 py-2 rounded-xl text-xs font-bold bg-lycoris-600/20 border border-lycoris-500 text-lycoris-200 inline-flex items-center gap-1.5">
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Criando Nova Loja...</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
               {/* BLOCO 1: EDITOR DO CABEÇALHO / BLOCO DA LOJA */}
               <div className="rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md overflow-hidden">
@@ -4104,7 +4205,7 @@ export default function AdminPage() {
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-800/80">
                       <div>
-                        {!isCreatingStore && partnerStores.length > 1 && (
+                        {isMasterUnlocked && !isCreatingStore && partnerStores.length > 1 && (
                           <button
                             type="button"
                             onClick={() => handleDeletePartnerStore(activeStore)}
@@ -5117,7 +5218,11 @@ export default function AdminPage() {
               ) : (
                 <div className="space-y-4">
                   {accounts.map((acc) => {
-                    const enabledCount = ACCESS_MODULE_DEFS.filter((d) => acc.modules[d.key]).length;
+                    const isDefEnabledForAcc = (def: (typeof allPermissionDefs)[number]) =>
+                      def.storeId
+                        ? isStoreEnabledInModules(acc.modules, def.storeId)
+                        : Boolean(acc.modules[def.key]);
+                    const enabledCount = allPermissionDefs.filter(isDefEnabledForAcc).length;
                     const revealed = Boolean(revealedAccountIds[acc.id]);
                     return (
                       <div
@@ -5129,7 +5234,7 @@ export default function AdminPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-serif font-bold text-base text-white">{acc.label}</span>
                               <span className="px-2 py-0.5 rounded-full bg-lycoris-950 border border-lycoris-800 text-lycoris-300 text-[10px] font-bold">
-                                {enabledCount}/{ACCESS_MODULE_DEFS.length} módulos
+                                {enabledCount}/{allPermissionDefs.length} módulos
                               </span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-zinc-400">
@@ -5189,7 +5294,7 @@ export default function AdminPage() {
 
                         <div className="p-4 sm:p-5 space-y-4">
                           {(['Eventos', 'Galeria', 'Lojas', 'ADM'] as const).map((cat) => {
-                            const catDefs = ACCESS_MODULE_DEFS.filter((d) => d.category === cat);
+                            const catDefs = allPermissionDefs.filter((d) => d.category === cat);
                             return (
                               <div key={cat} className="space-y-2">
                                 <div className="flex items-center gap-2">
@@ -5200,7 +5305,7 @@ export default function AdminPage() {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                   {catDefs.map((def) => {
-                                    const enabled = Boolean(acc.modules[def.key]);
+                                    const enabled = isDefEnabledForAcc(def);
                                     return (
                                       <label
                                         key={def.key}

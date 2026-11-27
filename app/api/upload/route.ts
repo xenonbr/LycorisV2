@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isAdminRequest, canAccessAdminModule, unauthorized, forbiddenMaster } from '@/lib/auth';
+import {
+  isAdminRequest,
+  canAccessAdminModule,
+  canAccessAnyPartnerStore,
+  unauthorized,
+  forbiddenMaster,
+} from '@/lib/auth';
 import { AdminModuleKey } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -85,7 +91,11 @@ export async function POST(request: Request) {
     // Whitelist estrita de pastas para impedir escrita em settings/ ou path traversal
     const folder = ALLOWED_FOLDERS.has(rawFolder) ? rawFolder : 'gallery';
 
-    if (!(await canAccessAdminModule(request, FOLDER_MODULE[folder]))) {
+    if (folder === 'sawvr') {
+      if (!(await canAccessAnyPartnerStore(request))) {
+        return forbiddenMaster();
+      }
+    } else if (!(await canAccessAdminModule(request, FOLDER_MODULE[folder]))) {
       return forbiddenMaster();
     }
 

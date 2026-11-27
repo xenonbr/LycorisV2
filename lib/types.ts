@@ -169,7 +169,8 @@ export type AdminModuleKey =
   | 'sawvr'
   | 'submissions'
   | 'comments'
-  | 'users';
+  | 'users'
+  | `store:${string}`;
 
 export interface AdminAccount {
   id: string;

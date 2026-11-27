@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { INITIAL_PARTNER_STORES } from '@/lib/mockData';
 import { PartnerStore, SupporterCrystalStyle } from '@/lib/types';
-import { canAccessAdminModule, forbiddenMaster } from '@/lib/auth';
+import {
+  isMasterAdminRequest,
+  canAccessPartnerStore,
+  forbiddenMaster,
+} from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,7 +122,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
+  if (!isMasterAdminRequest(request)) return forbiddenMaster();
   try {
     const body = await request.json();
     const name = String(body.name || '').trim();
@@ -158,13 +162,13 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
   try {
     const body = await request.json();
     const current = await getPartnerStoresList();
 
-    // Modo 1: Reordenar lojas
+    // Modo 1: Reordenar lojas (exclusivo Admin Mestre)
     if (Array.isArray(body.order)) {
+      if (!isMasterAdminRequest(request)) return forbiddenMaster();
       const orderIds: string[] = body.order.map((id: any) => String(id));
       const reordered = [...current]
         .map((s) => {
@@ -176,9 +180,12 @@ export async function PUT(request: Request) {
       return NextResponse.json(reordered);
     }
 
-    // Modo 2: Editar informações do bloco de uma loja
+    // Modo 2: Editar informações do bloco de uma loja específica (exige permissão naquela loja)
     if (!body.id) {
       return NextResponse.json({ error: 'ID da loja é obrigatório.' }, { status: 400 });
+    }
+    if (!(await canAccessPartnerStore(request, String(body.id)))) {
+      return forbiddenMaster();
     }
 
     let updatedStore: PartnerStore | null = null;
@@ -214,7 +221,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
+  if (!isMasterAdminRequest(request)) return forbiddenMaster();
   try {
     const id = new URL(request.url).searchParams.get('id');
     if (!id) {

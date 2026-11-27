@@ -24,13 +24,28 @@ export const ALL_MODULE_KEYS: AdminModuleKey[] = [
 ];
 
 export function buildModules(
-  source?: Partial<Record<AdminModuleKey, unknown>> | null,
+  source?: Partial<Record<string, unknown>> | null,
   fallback = false
 ): Record<AdminModuleKey, boolean> {
   const out = {} as Record<AdminModuleKey, boolean>;
   for (const key of ALL_MODULE_KEYS) {
     const v = source ? source[key] : undefined;
     out[key] = v === undefined ? fallback : Boolean(v);
+  }
+  let hasExplicitStoreKey = false;
+  if (source && typeof source === 'object') {
+    for (const [k, v] of Object.entries(source)) {
+      if (k.startsWith('store:') && k.length > 6 && k.length < 80) {
+        hasExplicitStoreKey = true;
+        out[k as AdminModuleKey] = Boolean(v);
+      }
+    }
+  }
+  if (fallback) {
+    out['store:sawvr'] = true;
+  } else if (!hasExplicitStoreKey && out.sawvr) {
+    // Migração automática: contas antigas com 'sawvr' liberado ganham acesso individual à loja 'store:sawvr'
+    out['store:sawvr'] = true;
   }
   return out;
 }
@@ -390,6 +405,31 @@ export async function canAccessAdminModule(
   const session = await resolveAdminSession(request);
   if (!session) return false;
   return session.isMaster || Boolean(session.modules[moduleKey]);
+}
+
+export async function canAccessPartnerStore(
+  request: Request,
+  storeId: string
+): Promise<boolean> {
+  const session = await resolveAdminSession(request);
+  if (!session) return false;
+  if (session.isMaster) return true;
+  const cleanId = String(storeId || 'sawvr').trim();
+  const storeKey = `store:${cleanId}` as AdminModuleKey;
+  if (session.modules[storeKey] !== undefined) {
+    return Boolean(session.modules[storeKey]);
+  }
+  return cleanId === 'sawvr' && Boolean(session.modules.sawvr);
+}
+
+export async function canAccessAnyPartnerStore(request: Request): Promise<boolean> {
+  const session = await resolveAdminSession(request);
+  if (!session) return false;
+  if (session.isMaster) return true;
+  for (const [k, v] of Object.entries(session.modules)) {
+    if (k.startsWith('store:') && v) return true;
+  }
+  return Boolean(session.modules.sawvr);
 }
 
 export function isWebhookRequest(request: Request): boolean {

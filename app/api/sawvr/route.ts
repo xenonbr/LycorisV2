@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { SawCatalogItem } from '@/lib/types';
-import { canAccessAdminModule, forbiddenMaster } from '@/lib/auth';
+import { canAccessPartnerStore, forbiddenMaster } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,12 +80,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
   try {
     const body = await request.json();
     const title = String(body.title || '').trim();
     const price = String(body.price || '').trim();
     const store_id = String(body.store_id || 'sawvr').trim() || 'sawvr';
+
+    if (!(await canAccessPartnerStore(request, store_id))) return forbiddenMaster();
 
     if (!title || !price) {
       return NextResponse.json(
@@ -122,7 +123,6 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
   try {
     const body = await request.json();
     if (!body.id) {
@@ -130,6 +130,13 @@ export async function PUT(request: Request) {
     }
 
     const current = await getCatalogItems();
+    const targetItem = current.find((item) => item.id === body.id);
+    if (!targetItem) {
+      return NextResponse.json({ error: 'Anúncio não encontrado.' }, { status: 404 });
+    }
+    if (!(await canAccessPartnerStore(request, targetItem.store_id || 'sawvr'))) {
+      return forbiddenMaster();
+    }
     let updatedItem: SawCatalogItem | null = null;
 
     const next = current.map((item) => {
@@ -169,7 +176,6 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!(await canAccessAdminModule(request, 'sawvr'))) return forbiddenMaster();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -178,6 +184,13 @@ export async function DELETE(request: Request) {
     }
 
     const current = await getCatalogItems();
+    const targetItem = current.find((item) => item.id === id);
+    if (!targetItem) {
+      return NextResponse.json({ error: 'Anúncio não encontrado.' }, { status: 404 });
+    }
+    if (!(await canAccessPartnerStore(request, targetItem.store_id || 'sawvr'))) {
+      return forbiddenMaster();
+    }
     const next = current.filter((item) => item.id !== id);
     await saveCatalogItems(next);
     return NextResponse.json({ success: true });
