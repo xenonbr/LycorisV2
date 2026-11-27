@@ -178,8 +178,10 @@ export default function LojasParceirasPage() {
                 <Link
                   key={store.id}
                   href={`/lojas/${store.slug}`}
-                  className={`group relative rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 overflow-hidden ${t.cardClass}`}
+                  className={`group relative z-10 rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 overflow-hidden ${t.cardClass}`}
                 >
+                  {/* Camada base escura para bloquear as flores que caem no fundo da página */}
+                  <div className="pointer-events-none absolute inset-0 z-0 bg-[#09090c]/85" />
                   {store.banner_url && (
                     <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
