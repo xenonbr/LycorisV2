@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { canAccessAdminModule, unauthorized } from '@/lib/auth';
+import {
+  canAccessAdminModule,
+  unauthorized,
+  checkRateLimit,
+  tooManyRequests,
+} from '@/lib/auth';
 import { PendingGalleryPost } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -106,8 +111,11 @@ export async function GET(request: Request) {
   return NextResponse.json(posts);
 }
 
-// POST: Visitantes enviam uma foto da comunidade para análise do Admin Nível 2
+// POST: Visitantes enviam uma foto da comunidade para análise (com rate limit de 5 fotos / 5 min por IP)
 export async function POST(request: Request) {
+  const rl = checkRateLimit(request, 'community-photo-upload', 5, 5 * 60_000);
+  if (!rl.allowed) return tooManyRequests(rl.retryAfterSec);
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isAdminRequest, unauthorized } from '@/lib/auth';
+import { canAccessAdminModule, forbiddenMaster } from '@/lib/auth';
 import { INITIAL_EVENTS } from '@/lib/mockData';
 
 export const dynamic = 'force-dynamic';
@@ -149,7 +149,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'events'))) return forbiddenMaster();
   try {
     const body = await request.json();
 
@@ -225,7 +225,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'events'))) return forbiddenMaster();
   try {
     const body = await request.json();
     if (!body.id) {
@@ -299,7 +299,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'events'))) return forbiddenMaster();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

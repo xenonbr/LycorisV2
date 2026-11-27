@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { isAdminRequest, unauthorized } from '@/lib/auth';
+import {
+  canAccessAdminModule,
+  forbiddenMaster,
+  checkRateLimit,
+  tooManyRequests,
+} from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +14,7 @@ let localRegistrations: any[] = [];
 
 // Admin: lista inscrições (opcionalmente filtradas por evento)
 export async function GET(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'registrations'))) return forbiddenMaster();
   const eventId = new URL(request.url).searchParams.get('eventId');
 
   if (isSupabaseConfigured && supabaseAdmin) {
@@ -27,8 +32,11 @@ export async function GET(request: Request) {
   );
 }
 
-// Público: qualquer visitante se inscreve em um evento
+// Público: qualquer visitante se inscreve em um evento (com rate limit contra flood)
 export async function POST(request: Request) {
+  const rl = checkRateLimit(request, 'event-registration', 10, 60_000);
+  if (!rl.allowed) return tooManyRequests(rl.retryAfterSec);
+
   try {
     const body = await request.json();
     const event_id = String(body.event_id || '').trim();
@@ -84,7 +92,7 @@ export async function POST(request: Request) {
 
 // Admin: remove inscrição
 export async function DELETE(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'registrations'))) return forbiddenMaster();
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'ID é obrigatório' }, { status: 400 });
 

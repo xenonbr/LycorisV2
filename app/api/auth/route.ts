@@ -3,16 +3,23 @@ import {
   verifyAdminCredentials,
   createAdminToken,
   createMasterToken,
+  checkRateLimit,
+  tooManyRequests,
 } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  // Rate Limit estrito: máx 8 tentativas de login a cada 60 segundos por IP
+  const rl = checkRateLimit(request, 'admin-login', 8, 60_000);
+  if (!rl.allowed) {
+    return tooManyRequests(rl.retryAfterSec);
+  }
+
   try {
     const { password, mode } = await request.json();
     const check = await verifyAdminCredentials(password);
 
-    // Verificação da segunda senha (Administrador Principal / Nível 2)
     if (mode === 'master') {
       if (check.authenticated && check.isMaster) {
         return NextResponse.json({
@@ -31,7 +38,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Login do painel geral (aceita senha de Nível 1, Nível 2 ou senhas extras cadastradas)
     if (check.authenticated) {
       return NextResponse.json({
         authenticated: true,
@@ -47,7 +53,7 @@ export async function POST(request: Request) {
       { authenticated: false, message: 'Senha incorreta.' },
       { status: 401 }
     );
-  } catch (err) {
-    return NextResponse.json({ error: 'Erro no servidor' }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Erro ao processar autenticação.' }, { status: 500 });
   }
 }

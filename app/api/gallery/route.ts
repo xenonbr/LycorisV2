@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { INITIAL_GALLERY } from '@/lib/mockData';
-import { isAdminRequest, isWebhookRequest, unauthorized } from '@/lib/auth';
+import {
+  isAdminRequest,
+  canAccessAdminModule,
+  isWebhookRequest,
+  unauthorized,
+  forbiddenMaster,
+  checkRateLimit,
+  tooManyRequests,
+} from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -88,23 +96,35 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // Admin logado ou webhook externo com header x-webhook-secret
-  if (!isAdminRequest(request) && !isWebhookRequest(request)) return unauthorized();
+  // Admin com permissão no módulo gallery ou webhook externo com header x-webhook-secret
+  if (!(await canAccessAdminModule(request, 'gallery')) && !isWebhookRequest(request)) {
+    return forbiddenMaster();
+  }
   try {
     const body = await request.json();
     const payload = body.data || body;
 
-    if (!payload.url || !payload.title) {
+    const title = String(payload.title || '').trim().slice(0, 120);
+    const url = String(payload.url || '').trim();
+    const author = String(payload.author || 'Membro do Lycoris').trim().slice(0, 80);
+    const vrchat_world = String(payload.vrchat_world || 'Lycoris Garden Sanctuary')
+      .trim()
+      .slice(0, 100);
+
+    if (!url || !title) {
       return NextResponse.json({ error: 'URL e Título são obrigatórios' }, { status: 400 });
+    }
+    if (!url.startsWith('/') && !/^https?:\/\//i.test(url) && !url.startsWith('data:image/')) {
+      return NextResponse.json({ error: 'URL de imagem inválida.' }, { status: 400 });
     }
 
     const newImage = {
       id: crypto.randomUUID(),
-      title: payload.title,
-      url: payload.url,
-      author: payload.author || 'Membro do Lycoris',
-      vrchat_world: payload.vrchat_world || 'Lycoris Garden Sanctuary',
-      likes: payload.likes || 0,
+      title,
+      url,
+      author,
+      vrchat_world,
+      likes: 0,
       created_at: new Date().toISOString(),
     };
 
@@ -139,7 +159,7 @@ export async function POST(request: Request) {
 
 // Rota PUT para o admin salvar ordem de exibição e ocultar/exibir fotos sem apagar
 export async function PUT(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'gallery'))) return forbiddenMaster();
   try {
     const body = await request.json();
     const current = await getGallerySettings();
@@ -172,8 +192,11 @@ export async function PUT(request: Request) {
   }
 }
 
-// Rota PATCH para persistir as curtidas no banco de dados
+// Rota PATCH para persistir as curtidas no banco de dados (com rate limit por IP)
 export async function PATCH(request: Request) {
+  const rl = checkRateLimit(request, 'gallery-like', 30, 60_000);
+  if (!rl.allowed) return tooManyRequests(rl.retryAfterSec);
+
   try {
     const body = await request.json();
     const { id, action } = body;
@@ -220,7 +243,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isAdminRequest(request)) return unauthorized();
+  if (!(await canAccessAdminModule(request, 'gallery'))) return forbiddenMaster();
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

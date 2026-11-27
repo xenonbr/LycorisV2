@@ -11,13 +11,14 @@ export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-// Cliente administrativo para operações seguras no backend (API Routes / Admin)
-// Utiliza a service_role key que possui privilégios para ignorar o RLS
-export const supabaseAdmin = supabaseUrl && supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  : supabase;
+// Cliente administrativo EXCLUSIVO para o servidor (Node.js runtime).
+// Protegido com 'typeof window === "undefined"' para garantir que jamais seja instanciado no bundle client-side.
+export const supabaseAdmin =
+  typeof window === 'undefined' && supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      })
+    : supabase;

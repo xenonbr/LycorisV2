@@ -41,6 +41,31 @@ async function saveCatalogItems(items: SawCatalogItem[]): Promise<void> {
   }
 }
 
+function sanitizeContactUrl(raw?: string): string {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return 'https://discord.gg/V5ykbQsBAE';
+  try {
+    const u = new URL(trimmed);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return trimmed;
+  } catch {
+    // URL inválida
+  }
+  return 'https://discord.gg/V5ykbQsBAE';
+}
+
+function sanitizeImageUrl(raw?: string): string {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('/') || trimmed.startsWith('data:image/')) return trimmed;
+  try {
+    const u = new URL(trimmed);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return trimmed;
+  } catch {
+    // URL inválida
+  }
+  return '';
+}
+
 export async function GET() {
   const items = await getCatalogItems();
   return NextResponse.json(items);
@@ -67,8 +92,8 @@ export async function POST(request: Request) {
       price,
       category: String(body.category || 'Headset VR').trim(),
       condition: String(body.condition || 'Novo / Lacrado').trim(),
-      image_url: String(body.image_url || '').trim(),
-      contact_url: String(body.contact_url || 'https://discord.gg/V5ykbQsBAE').trim(),
+      image_url: sanitizeImageUrl(body.image_url),
+      contact_url: sanitizeContactUrl(body.contact_url),
       available: body.available !== false,
       featured: Boolean(body.featured),
       created_at: new Date().toISOString(),
@@ -107,9 +132,12 @@ export async function PUT(request: Request) {
         price: body.price !== undefined ? String(body.price).trim() : item.price,
         category: body.category !== undefined ? String(body.category).trim() : item.category,
         condition: body.condition !== undefined ? String(body.condition).trim() : item.condition,
-        image_url: body.image_url !== undefined ? String(body.image_url).trim() : item.image_url,
+        image_url:
+          body.image_url !== undefined ? sanitizeImageUrl(body.image_url) : item.image_url,
         contact_url:
-          body.contact_url !== undefined ? String(body.contact_url).trim() : item.contact_url,
+          body.contact_url !== undefined
+            ? sanitizeContactUrl(body.contact_url)
+            : item.contact_url,
         available: body.available !== undefined ? Boolean(body.available) : item.available,
         featured: body.featured !== undefined ? Boolean(body.featured) : item.featured,
       };

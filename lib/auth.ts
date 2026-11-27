@@ -3,7 +3,10 @@ import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { AdminAccessConfig, AdminModuleKey } from '@/lib/types';
 
 const TOKEN_TTL_MS = 8 * 60 * 60 * 1000; // 8 horas
-const BUCKET_NAME = 'lycoris-media';
+// IMPORTANTE: Configuracoes sensiveis (senhas e RBAC) sao salvas em bucket PRIVADO (public: false)
+// nunca no bucket publico 'lycoris-media'.
+const PRIVATE_BUCKET_NAME = 'lycoris-private';
+const LEGACY_PUBLIC_BUCKET = 'lycoris-media';
 const ACCESS_CONFIG_PATH = 'settings/admin-access.json';
 
 export const DEFAULT_LEVEL1_MODULES: Record<AdminModuleKey, boolean> = {
@@ -26,7 +29,8 @@ function getEnvMasterPassword(): string {
 }
 
 function getSigningSecret(): string {
-  return `${getEnvMasterPassword()}::${getEnvLevel1Password()}::lycoris-hmac`;
+  const customSecret = process.env.ADMIN_TOKEN_SECRET || '';
+  return `${customSecret}::${getEnvMasterPassword()}::${getEnvLevel1Password()}::lycoris-hmac-v2`;
 }
 
 let cachedAccessConfig: AdminAccessConfig = {
@@ -36,13 +40,60 @@ let cachedAccessConfig: AdminAccessConfig = {
   level1Modules: { ...DEFAULT_LEVEL1_MODULES },
 };
 
+async function ensurePrivateBucket(): Promise<void> {
+  if (!isSupabaseConfigured || !supabaseAdmin) return;
+  try {
+    const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+    const exists = buckets?.some((b) => b.name === PRIVATE_BUCKET_NAME);
+    if (!exists) {
+      await supabaseAdmin.storage.createBucket(PRIVATE_BUCKET_NAME, {
+        public: false,
+        fileSizeLimit: 2 * 1024 * 1024,
+        allowedMimeTypes: ['application/json'],
+      });
+    } else {
+      await supabaseAdmin.storage.updateBucket(PRIVATE_BUCKET_NAME, {
+        public: false,
+        fileSizeLimit: 2 * 1024 * 1024,
+        allowedMimeTypes: ['application/json'],
+      });
+    }
+  } catch {
+    // Ignora erro se ja existir
+  }
+}
+
 export async function getAdminAccessConfig(): Promise<AdminAccessConfig> {
   if (isSupabaseConfigured && supabaseAdmin) {
     try {
-      const { data, error } = await supabaseAdmin.storage
-        .from(BUCKET_NAME)
+      await ensurePrivateBucket();
+      let { data, error } = await supabaseAdmin.storage
+        .from(PRIVATE_BUCKET_NAME)
         .download(ACCESS_CONFIG_PATH);
-      if (!error && data) {
+
+      // Migração transparente e remoção imediata caso ainda exista no bucket público antigo
+      if (error || !data) {
+        const legacy = await supabaseAdmin.storage
+          .from(LEGACY_PUBLIC_BUCKET)
+          .download(ACCESS_CONFIG_PATH);
+        if (!legacy.error && legacy.data) {
+          data = legacy.data;
+          const rawText = await legacy.data.text();
+          await supabaseAdmin.storage
+            .from(PRIVATE_BUCKET_NAME)
+            .upload(ACCESS_CONFIG_PATH, Buffer.from(rawText, 'utf-8'), {
+              contentType: 'application/json',
+              cacheControl: '0',
+              upsert: true,
+            });
+          await supabaseAdmin.storage
+            .from(LEGACY_PUBLIC_BUCKET)
+            .remove([ACCESS_CONFIG_PATH]);
+          data = new Blob([rawText], { type: 'application/json' });
+        }
+      }
+
+      if (data) {
         const parsed = JSON.parse(await data.text());
         if (parsed && typeof parsed === 'object') {
           cachedAccessConfig = {
@@ -62,7 +113,7 @@ export async function getAdminAccessConfig(): Promise<AdminAccessConfig> {
         }
       }
     } catch {
-      // Usa configuração padrão se o arquivo ainda não existir
+      // Usa configuracao padrao se o arquivo ainda nao existir
     }
   }
   return cachedAccessConfig;
@@ -88,14 +139,20 @@ export async function saveAdminAccessConfig(
   cachedAccessConfig = sanitized;
 
   if (isSupabaseConfigured && supabaseAdmin) {
+    await ensurePrivateBucket();
     const buffer = Buffer.from(JSON.stringify(sanitized, null, 2), 'utf-8');
     await supabaseAdmin.storage
-      .from(BUCKET_NAME)
+      .from(PRIVATE_BUCKET_NAME)
       .upload(ACCESS_CONFIG_PATH, buffer, {
         contentType: 'application/json',
         cacheControl: '0',
         upsert: true,
       });
+    // Garante que nunca sobre cópia no bucket público
+    await supabaseAdmin.storage
+      .from(LEGACY_PUBLIC_BUCKET)
+      .remove([ACCESS_CONFIG_PATH])
+      .catch(() => {});
   }
 
   return sanitized;
@@ -111,7 +168,66 @@ export function safeEqual(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-// Verifica uma senha contra a configuração salva no Supabase Storage (Nível 1, Nível 2 e senhas extras)
+// Rate limiter em memória por IP + rota para mitigar Brute-Force, DoS e Spam
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+export function getClientIp(request: Request): string {
+  const xff = request.headers.get('x-forwarded-for');
+  if (xff) return xff.split(',')[0].trim();
+  return request.headers.get('x-real-ip') || 'unknown-ip';
+}
+
+export function checkRateLimit(
+  request: Request,
+  bucketKey: string,
+  maxRequests: number,
+  windowMs: number
+): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  const ip = getClientIp(request);
+  const key = `${bucketKey}:${ip}`;
+
+  if (rateLimitStore.size > 5000) {
+    for (const [k, v] of rateLimitStore.entries()) {
+      if (v.resetAt <= now) rateLimitStore.delete(k);
+    }
+  }
+
+  const current = rateLimitStore.get(key);
+  if (!current || current.resetAt <= now) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+
+  if (current.count >= maxRequests) {
+    const retryAfterSec = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
+    return { allowed: false, retryAfterSec };
+  }
+
+  current.count += 1;
+  return { allowed: true, retryAfterSec: 0 };
+}
+
+export function tooManyRequests(retryAfterSec = 60) {
+  return new Response(
+    JSON.stringify({
+      error: `Muitas tentativas consecutivas. Aguarde ${retryAfterSec}s antes de tentar novamente.`,
+    }),
+    {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': String(retryAfterSec),
+      },
+    }
+  );
+}
+
+// Verifica uma senha contra a configuração salva no bucket privado
 export async function verifyAdminCredentials(password: string): Promise<{
   authenticated: boolean;
   isMaster: boolean;
@@ -129,7 +245,6 @@ export async function verifyAdminCredentials(password: string): Promise<{
     };
   }
 
-  // 1. Senha Principal de Nível 2
   if (safeEqual(input, config.level2Password)) {
     return {
       authenticated: true,
@@ -139,7 +254,6 @@ export async function verifyAdminCredentials(password: string): Promise<{
     };
   }
 
-  // 2. Senha Padrão de Nível 1
   if (safeEqual(input, config.level1Password)) {
     return {
       authenticated: true,
@@ -149,7 +263,6 @@ export async function verifyAdminCredentials(password: string): Promise<{
     };
   }
 
-  // 3. Senhas Extras Cadastradas no Painel
   for (const extra of config.extraPasswords) {
     if (extra.password && safeEqual(input, extra.password)) {
       return {
@@ -168,21 +281,6 @@ export async function verifyAdminCredentials(password: string): Promise<{
   };
 }
 
-export function checkPassword(password: string): boolean {
-  return (
-    typeof password === 'string' &&
-    (safeEqual(password, cachedAccessConfig.level1Password) ||
-      safeEqual(password, cachedAccessConfig.level2Password))
-  );
-}
-
-export function checkMasterPassword(password: string): boolean {
-  return (
-    typeof password === 'string' &&
-    safeEqual(password, cachedAccessConfig.level2Password)
-  );
-}
-
 export function createAdminToken(): string {
   const exp = String(Date.now() + TOKEN_TTL_MS);
   return `${exp}.${sign(exp)}`;
@@ -199,8 +297,10 @@ export function isAdminRequest(request: Request): boolean {
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   const [exp, sig] = token.split('.');
   if (!exp || !sig) return false;
+  const legacySecret = `${getEnvMasterPassword()}::${getEnvLevel1Password()}::lycoris-hmac`;
   if (
     !safeEqual(sig, sign(exp)) &&
+    !safeEqual(sig, sign(exp, legacySecret)) &&
     !safeEqual(sig, sign(exp, getEnvLevel1Password()))
   ) {
     return false;
@@ -214,8 +314,10 @@ export function isMasterAdminRequest(request: Request): boolean {
   const [exp, sig] = masterToken.split('.');
   if (!exp || !sig) return false;
   const payload = `master:${exp}`;
+  const legacySecret = `${getEnvMasterPassword()}::${getEnvLevel1Password()}::lycoris-hmac`;
   if (
     !safeEqual(sig, sign(payload)) &&
+    !safeEqual(sig, sign(payload, legacySecret)) &&
     !safeEqual(sig, sign(payload, getEnvMasterPassword()))
   ) {
     return false;
@@ -223,7 +325,6 @@ export function isMasterAdminRequest(request: Request): boolean {
   return Number(exp) > Date.now();
 }
 
-// Verifica se a requisição tem acesso a um módulo específico (Admin Nível 2 sempre tem; Admin Nível 1 depende da caixinha marcada)
 export async function canAccessAdminModule(
   request: Request,
   moduleKey: AdminModuleKey
@@ -249,7 +350,7 @@ export function unauthorized(msg = 'Não autorizado') {
 
 export function forbiddenMaster() {
   return new Response(
-    JSON.stringify({ error: 'Acesso restrito ao Administrador Principal.' }),
+    JSON.stringify({ error: 'Acesso restrito ou módulo desativado para o seu nível.' }),
     {
       status: 403,
       headers: { 'Content-Type': 'application/json' },

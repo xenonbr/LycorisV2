@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabase, supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { canAccessAdminModule, forbiddenMaster } from '@/lib/auth';
+import {
+  canAccessAdminModule,
+  forbiddenMaster,
+  checkRateLimit,
+  tooManyRequests,
+} from '@/lib/auth';
 import { INITIAL_GALLERY } from '@/lib/mockData';
 import { validateCommentInput } from '@/lib/moderation';
 
@@ -51,6 +56,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rl = checkRateLimit(request, 'gallery-comment', 10, 60_000);
+  if (!rl.allowed) return tooManyRequests(rl.retryAfterSec);
+
   try {
     const body = await request.json();
     const { image_id, author_name, content } = body;
