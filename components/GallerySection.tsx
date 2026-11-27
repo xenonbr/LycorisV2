@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Camera, MessageSquare, Heart, X, Send, User, ArrowRight, Upload, Lock } from 'lucide-react';
+import { Camera, MessageSquare, Heart, X, Send, User, ArrowRight, Upload, Lock, Maximize2, Minimize2 } from 'lucide-react';
 import { GalleryImage, CommentItem } from '@/lib/types';
 import {
   MAX_COMMENT_LENGTH,
@@ -24,6 +24,7 @@ export default function GallerySection({
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState<GalleryImage | null>(null);
+  const [isFullscreenPhoto, setIsFullscreenPhoto] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [authorName, setAuthorName] = useState('');
   const [lockedAuthorName, setLockedAuthorName] = useState<string | null>(null);
@@ -99,6 +100,7 @@ export default function GallerySection({
 
   const closeLightbox = () => {
     setActiveImage(null);
+    setIsFullscreenPhoto(false);
     setNewComment('');
     setCommentError('');
   };
@@ -110,7 +112,13 @@ export default function GallerySection({
     document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') closeLightbox();
+      if (ev.key === 'Escape') {
+        if (isFullscreenPhoto) {
+          setIsFullscreenPhoto(false);
+        } else {
+          closeLightbox();
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
 
@@ -118,7 +126,7 @@ export default function GallerySection({
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeImage]);
+  }, [activeImage, isFullscreenPhoto]);
 
   // Gerenciamento de curtidas com sincronização no Supabase e no localStorage
   const handleLike = async (id: string, e: React.MouseEvent) => {
@@ -346,12 +354,20 @@ export default function GallerySection({
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="lg:w-7/12 bg-black flex items-center justify-center p-3 sm:p-6 relative min-h-[220px] sm:min-h-[260px] lg:h-full shrink-0">
+              <div
+                onClick={() => setIsFullscreenPhoto(true)}
+                title="Clique na foto para ver em tela cheia"
+                className="group/photo lg:w-7/12 bg-black flex items-center justify-center p-3 sm:p-6 relative min-h-[220px] sm:min-h-[260px] lg:h-full shrink-0 cursor-zoom-in"
+              >
                 <img
                   src={activeImage.url}
                   alt={activeImage.title || 'Registro em tela cheia'}
-                  className="max-h-[48dvh] sm:max-h-[75vh] lg:max-h-full w-auto max-w-full object-contain rounded-lg shadow-lg"
+                  className="max-h-[48dvh] sm:max-h-[75vh] lg:max-h-full w-auto max-w-full object-contain rounded-lg shadow-lg transition-transform duration-300 group-hover/photo:scale-[1.01]"
                 />
+                <span className="pointer-events-none absolute bottom-3 right-3 px-2.5 py-1.5 rounded-full bg-black/75 border border-zinc-700/80 text-[11px] font-medium text-zinc-200 inline-flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover/photo:opacity-100 transition-opacity">
+                  <Maximize2 className="w-3.5 h-3.5 text-lycoris-400" />
+                  <span>Ver em tela cheia</span>
+                </span>
               </div>
 
               <div className="lg:w-5/12 p-5 sm:p-6 flex flex-col justify-between bg-zinc-950 border-t lg:border-t-0 lg:border-l border-zinc-800/80 lg:h-full overflow-hidden">
@@ -466,7 +482,7 @@ export default function GallerySection({
                         placeholder={
                           isIpBlocked
                             ? 'Seu acesso aos comentários foi suspenso pela moderação.'
-                            : 'Deixe uma mensagem (apenas texto, máx. 150 caracteres)...'
+                            : 'Deixe uma mensagem com emojis 😊 (máx. 150 caracteres)...'
                         }
                         value={newComment}
                         onChange={(e) => {
@@ -485,7 +501,7 @@ export default function GallerySection({
                       </button>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-zinc-500 px-0.5">
-                      <span>Sem links, emojis ou símbolos especiais</span>
+                      <span>Emojis liberados ✨ • Sem links</span>
                       <span className={newComment.length >= MAX_COMMENT_LENGTH ? 'text-lycoris-400 font-semibold' : ''}>
                         {newComment.length}/{MAX_COMMENT_LENGTH}
                       </span>
@@ -494,6 +510,36 @@ export default function GallerySection({
                 </form>
               </div>
             </div>
+
+            {/* Visualizador 100% Tela Cheia ao clicar na foto */}
+            {isFullscreenPhoto && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFullscreenPhoto(false);
+                }}
+                className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 sm:p-6 cursor-zoom-out"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFullscreenPhoto(false);
+                  }}
+                  className="fixed top-4 right-4 z-[130] px-3.5 py-2 rounded-full bg-zinc-900/90 hover:bg-lycoris-700 text-zinc-100 hover:text-white border border-zinc-700 text-xs font-semibold inline-flex items-center gap-1.5 shadow-xl transition-colors"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                  <span>Sair da Tela Cheia</span>
+                </button>
+
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={activeImage.url}
+                  alt={activeImage.title || 'Foto em tela cheia'}
+                  className="max-w-[98vw] max-h-[95dvh] w-auto h-auto object-contain rounded-lg shadow-2xl select-none"
+                />
+              </div>
+            )}
           </div>,
           document.body
         )}

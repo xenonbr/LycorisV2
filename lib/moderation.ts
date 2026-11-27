@@ -2,8 +2,9 @@ export const MAX_COMMENT_LENGTH = 150;
 export const MAX_AUTHOR_LENGTH = 40;
 
 // Caracteres permitidos:
-// - No comentário: letras (com acentos), números, espaços e pontuação básica (, . ! ? - ' ")
-const ALLOWED_CONTENT_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s,.!?\-'"]+$/;
+// - No comentário: letras (com acentos), números, espaços, pontuação básica e EMOJIS Unicode
+const ALLOWED_CONTENT_REGEX =
+  /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s,.!?\-'"()\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]+$/u;
 // - No nome/nick: letras (com acentos), números, espaços, underline, hífen e ponto
 const ALLOWED_AUTHOR_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s_\-.]+$/;
 
@@ -106,7 +107,12 @@ export function stripForbiddenChars(text: string, isAuthor = false): string {
   if (isAuthor) {
     return text.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ0-9\s_\-.]/g, '').slice(0, MAX_AUTHOR_LENGTH);
   }
-  return text.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ0-9\s,.!?\-'"]/g, '').slice(0, MAX_COMMENT_LENGTH);
+  return text
+    .replace(
+      /[^A-Za-zÀ-ÖØ-öø-ÿ0-9\s,.!?\-'"()\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu,
+      ''
+    )
+    .slice(0, MAX_COMMENT_LENGTH);
 }
 
 export function containsSensitiveWord(
@@ -182,7 +188,7 @@ export function validateCommentInput(
   if (!ALLOWED_CONTENT_REGEX.test(msg)) {
     return {
       valid: false,
-      error: 'Apenas texto simples é permitido (sem links, emojis ou símbolos especiais).',
+      error: 'Apenas texto e emojis são permitidos (sem links ou símbolos especiais).',
     };
   }
 
