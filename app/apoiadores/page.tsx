@@ -7,28 +7,19 @@ import Footer from '@/components/Footer';
 import { INITIAL_SUPPORTERS } from '@/lib/mockData';
 import { Supporter, SupporterCrystalStyle } from '@/lib/types';
 import {
+  resolveSupporterStyle,
+  resolveSupporterBadgeIcon,
+  renderSupporterBadgeIcon,
+} from '@/lib/supporterUI';
+import {
   Award,
   ExternalLink,
   Sparkles,
-  Crown,
   Search,
   ArrowLeft,
   HeartHandshake,
   ShoppingBag,
 } from 'lucide-react';
-
-function resolveSupporterStyle(supporter: Supporter): SupporterCrystalStyle {
-  if (supporter.crystal_style && supporter.crystal_style !== 'none') return supporter.crystal_style;
-  if (supporter.is_owner) return 'crimson';
-  if (supporter.is_gold_crystal) return 'gold';
-  const order = supporter.sort_order ?? 0;
-  if (order === -2 || order <= -6) return 'crimson';
-  if (order === -1) return 'gold';
-  if (order === -3) return 'purple';
-  if (order === -4) return 'blue';
-  if (order === -5) return 'pink';
-  return 'none';
-}
 
 const CRYSTAL_THEME: Record<
   SupporterCrystalStyle,
@@ -304,9 +295,9 @@ export default function ApoiadoresPage() {
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 ${t.badgeClass}`}
                       >
-                        {style === 'crimson' && <Crown className="w-3.5 h-3.5 text-lycoris-400" />}
-                        {style !== 'crimson' && isCrystal && (
-                          <Sparkles className={`w-3.5 h-3.5 ${t.sparkleClass.replace('animate-pulse', '')}`} />
+                        {renderSupporterBadgeIcon(
+                          resolveSupporterBadgeIcon(supporter),
+                          `w-3.5 h-3.5 shrink-0 ${t.sparkleClass.replace('animate-pulse', '').trim()}`
                         )}
                         {supporter.role}
                       </span>

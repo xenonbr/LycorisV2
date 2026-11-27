@@ -48,6 +48,20 @@ export interface GalleryImage {
 
 export type SupporterCrystalStyle = 'none' | 'crimson' | 'gold' | 'purple' | 'blue' | 'pink';
 
+export type SupporterBadgeIcon =
+  | 'none'
+  | 'crown'
+  | 'sparkles'
+  | 'flame'
+  | 'heart'
+  | 'gem'
+  | 'palette'
+  | 'video'
+  | 'music'
+  | 'shield'
+  | 'shopping'
+  | 'users';
+
 export interface Supporter {
   id?: string;
   name: string;
@@ -60,6 +74,7 @@ export interface Supporter {
   is_owner?: boolean;
   is_gold_crystal?: boolean;
   crystal_style?: SupporterCrystalStyle;
+  badge_icon?: SupporterBadgeIcon;
 }
 
 export interface EventRegistration {

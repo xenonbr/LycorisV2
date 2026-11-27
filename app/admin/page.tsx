@@ -25,6 +25,8 @@ import {
   EyeOff,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   GripVertical,
   ShoppingBag,
   Clock,
@@ -44,6 +46,7 @@ import {
   CommentItem,
   Supporter,
   SupporterCrystalStyle,
+  SupporterBadgeIcon,
   EventRegistration,
   HeroStat,
   HomePageContent,
@@ -59,6 +62,11 @@ import {
   INITIAL_HERO_STATS,
   INITIAL_HOME_CONTENT,
 } from '@/lib/mockData';
+import {
+  SUPPORTER_BADGE_ICONS,
+  resolveSupporterBadgeIcon,
+  renderSupporterBadgeIcon,
+} from '@/lib/supporterUI';
 
 const TOKEN_KEY = 'lycoris_admin_token';
 const MASTER_TOKEN_KEY = 'lycoris_master_admin_token';
@@ -90,6 +98,7 @@ const EMPTY_SUPPORTER = {
   is_owner: false,
   is_gold_crystal: false,
   crystal_style: 'none' as SupporterCrystalStyle,
+  badge_icon: 'none' as SupporterBadgeIcon,
 };
 
 function getSupporterCrystalStyle(s: Supporter): SupporterCrystalStyle {
@@ -353,6 +362,7 @@ export default function AdminPage() {
   const [regFilter, setRegFilter] = useState('');
   const [supporterForm, setSupporterForm] = useState(EMPTY_SUPPORTER);
   const [editingSupporterId, setEditingSupporterId] = useState<string | null>(null);
+  const [draggedSupporterId, setDraggedSupporterId] = useState<string | null>(null);
   const [draggedGalleryId, setDraggedGalleryId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -1194,6 +1204,7 @@ export default function AdminPage() {
     setEditingSupporterId(s.id || null);
     setSupporterBannerStats(null);
     const style = getSupporterCrystalStyle(s);
+    const icon = resolveSupporterBadgeIcon(s);
     setSupporterForm({
       name: s.name,
       url: s.url,
@@ -1204,7 +1215,48 @@ export default function AdminPage() {
       is_owner: style === 'crimson',
       is_gold_crystal: style === 'gold',
       crystal_style: style,
+      badge_icon: icon,
     });
+  };
+
+  const persistSupportersOrder = async (nextList: Supporter[], toastMsg?: string) => {
+    setSupporters(nextList);
+    try {
+      const res = await api('/api/supporters', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order: nextList.map((s) => s.id).filter(Boolean),
+        }),
+      });
+      if (res.ok && toastMsg) showToast(toastMsg);
+    } catch {
+      showToast('Erro ao salvar ordem dos apoiadores');
+    }
+  };
+
+  const handleMoveSupporter = async (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= supporters.length) return;
+    const next = [...supporters];
+    const [moved] = next.splice(index, 1);
+    next.splice(targetIdx, 0, moved);
+    await persistSupportersOrder(next, 'Ordem de exibição dos parceiros atualizada!');
+  };
+
+  const handleDropSupporter = async (targetId?: string) => {
+    if (!targetId || !draggedSupporterId || draggedSupporterId === targetId) {
+      setDraggedSupporterId(null);
+      return;
+    }
+    const fromIdx = supporters.findIndex((s) => s.id === draggedSupporterId);
+    const toIdx = supporters.findIndex((s) => s.id === targetId);
+    setDraggedSupporterId(null);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const next = [...supporters];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    await persistSupportersOrder(next, 'Ordem de exibição dos parceiros atualizada!');
   };
 
   const handleDeleteSupporter = async (id?: string) => {
@@ -2745,7 +2797,7 @@ export default function AdminPage() {
                       <span>Cor de Destaque Cristal Glass</span>
                     </label>
                     <span className="text-[10px] text-zinc-500">
-                      Clique na cor desejada
+                      Independente da ordem e do ícone
                     </span>
                   </div>
 
@@ -2778,6 +2830,49 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                {/* Seletor de Ícone / Emoji do Nome/Cargo (Independente da Cor) */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-zinc-200">
+                      Ícone / Emblema ao lado do Cargo
+                    </label>
+                    <span className="text-[10px] text-zinc-500">
+                      Opcional para qualquer cor
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                    {SUPPORTER_BADGE_ICONS.map((iconOpt) => {
+                      const IconComp = iconOpt.Icon;
+                      const isSelected = supporterForm.badge_icon === iconOpt.key;
+                      return (
+                        <button
+                          key={iconOpt.key}
+                          type="button"
+                          onClick={() =>
+                            setSupporterForm({
+                              ...supporterForm,
+                              badge_icon: iconOpt.key,
+                            })
+                          }
+                          className={`py-1.5 px-2 rounded-xl border text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                            isSelected
+                              ? 'bg-lycoris-950/90 border-lycoris-500 text-white shadow-lycoris-glow'
+                              : 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                          }`}
+                        >
+                          <IconComp
+                            className={`w-3.5 h-3.5 shrink-0 ${
+                              isSelected ? 'text-lycoris-400' : 'text-zinc-400'
+                            }`}
+                          />
+                          <span className="truncate">{iconOpt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -2802,44 +2897,95 @@ export default function AdminPage() {
             </div>
 
             <div className="lg:col-span-7 space-y-3">
-              <h2 className="font-serif text-lg font-bold text-white">Apoiadores no Site ({supporters.length})</h2>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h2 className="font-serif text-lg font-bold text-white">
+                  Apoiadores no Site ({supporters.length})
+                </h2>
+                <span className="text-[11px] text-zinc-400">
+                  Use as setas ↑↓ ou arraste o card para mudar a ordem de exibição
+                </span>
+              </div>
               {supporters.length === 0 && (
                 <div className="p-8 text-center text-zinc-500 text-xs">Nenhum apoiador cadastrado.</div>
               )}
-              {supporters.map((s) => (
+              {supporters.map((s, idx) => (
                 <div
                   key={s.id || s.name}
-                  className="p-4 rounded-xl bg-zinc-950/85 border border-zinc-800/80 backdrop-blur-md flex items-center justify-between gap-4"
+                  draggable={Boolean(s.id)}
+                  onDragStart={() => s.id && setDraggedSupporterId(s.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleDropSupporter(s.id)}
+                  className={`p-4 rounded-xl bg-zinc-950/85 border backdrop-blur-md flex items-center justify-between gap-3 transition-all ${
+                    draggedSupporterId === s.id
+                      ? 'border-lycoris-500 opacity-60'
+                      : 'border-zinc-800/80 hover:border-zinc-700'
+                  }`}
                 >
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-white text-sm">{s.name}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded border border-gothic-gold/30 text-gothic-gold">
-                        {s.role}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Controles de Ordem (Arrastar + Subir/Descer) */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span title="Arraste para reordenar" className="hidden sm:block">
+                        <GripVertical className="w-4 h-4 text-zinc-600 cursor-grab active:cursor-grabbing" />
                       </span>
-                      {(() => {
-                        const style = getSupporterCrystalStyle(s);
-                        const opt = SUPPORTER_COLOR_OPTIONS.find((o) => o.key === style);
-                        if (!opt || opt.key === 'none') return null;
-                        return (
-                          <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold inline-flex items-center gap-1.5 ${opt.badgeClass}`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${opt.dotClass}`} />
-                            <span>{opt.badgeLabel}</span>
-                          </span>
-                        );
-                      })()}
-                      {s.banner_url && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
-                          Com fundo em /apoiadores
-                        </span>
-                      )}
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveSupporter(idx, -1)}
+                          title="Mover para cima"
+                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 disabled:opacity-30 border border-zinc-800 text-zinc-300 transition-colors"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === supporters.length - 1}
+                          onClick={() => handleMoveSupporter(idx, 1)}
+                          title="Mover para baixo"
+                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 disabled:opacity-30 border border-zinc-800 text-zinc-300 transition-colors"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-zinc-400 truncate">{s.tagline}</p>
-                    <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-lycoris-400 hover:underline truncate block">
-                      {s.url}
-                    </a>
+
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                          #{idx + 1}
+                        </span>
+                        <span className="font-semibold text-white text-sm">{s.name}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded border border-gothic-gold/30 text-gothic-gold inline-flex items-center gap-1">
+                          {renderSupporterBadgeIcon(
+                            resolveSupporterBadgeIcon(s),
+                            'w-3 h-3 text-gothic-gold shrink-0'
+                          )}
+                          <span>{s.role}</span>
+                        </span>
+                        {(() => {
+                          const style = getSupporterCrystalStyle(s);
+                          const opt = SUPPORTER_COLOR_OPTIONS.find((o) => o.key === style);
+                          if (!opt || opt.key === 'none') return null;
+                          return (
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold inline-flex items-center gap-1.5 ${opt.badgeClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${opt.dotClass}`} />
+                              <span>{opt.badgeLabel}</span>
+                            </span>
+                          );
+                        })()}
+                        {s.banner_url && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
+                            Com fundo em /apoiadores
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-zinc-400 truncate">{s.tagline}</p>
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-lycoris-400 hover:underline truncate block">
+                        {s.url}
+                      </a>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
