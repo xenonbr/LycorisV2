@@ -4,7 +4,115 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink, Sparkles, Award, Crown, ArrowRight } from 'lucide-react';
 import { INITIAL_SUPPORTERS } from '@/lib/mockData';
-import { Supporter } from '@/lib/types';
+import { Supporter, SupporterCrystalStyle } from '@/lib/types';
+
+function resolveSupporterStyle(supporter: Supporter): SupporterCrystalStyle {
+  if (supporter.crystal_style && supporter.crystal_style !== 'none') return supporter.crystal_style;
+  if (supporter.is_owner) return 'crimson';
+  if (supporter.is_gold_crystal) return 'gold';
+  const order = supporter.sort_order ?? 0;
+  if (order === -2 || order <= -6) return 'crimson';
+  if (order === -1) return 'gold';
+  if (order === -3) return 'purple';
+  if (order === -4) return 'blue';
+  if (order === -5) return 'pink';
+  return 'none';
+}
+
+const CRYSTAL_THEME: Record<
+  SupporterCrystalStyle,
+  {
+    cardClass: string;
+    orbTop: string;
+    orbBottom: string;
+    topLine: string;
+    badgeClass: string;
+    sparkleClass: string;
+    avatarClass: string;
+    titleClass: string;
+    dividerClass: string;
+    linkClass: string;
+  }
+> = {
+  crimson: {
+    cardClass: 'crimson-crystal-card',
+    orbTop: 'bg-lycoris-500/20 group-hover:bg-lycoris-500/35',
+    orbBottom: 'bg-lycoris-700/20 group-hover:bg-lycoris-600/35',
+    topLine: 'via-lycoris-300/70',
+    badgeClass:
+      'bg-lycoris-950/80 border border-lycoris-400/50 text-lycoris-200 shadow-sm backdrop-blur-md',
+    sparkleClass: 'text-lycoris-400 animate-pulse',
+    avatarClass: 'border-2 border-lycoris-400/70 shadow-lycoris-glow',
+    titleClass: 'text-white group-hover:text-lycoris-300 text-glow',
+    dividerClass: 'border-lycoris-500/25',
+    linkClass: 'text-lycoris-300 hover:text-white',
+  },
+  gold: {
+    cardClass: 'gold-crystal-card',
+    orbTop: 'bg-gothic-gold/25 group-hover:bg-gothic-gold/40',
+    orbBottom: 'bg-amber-600/20 group-hover:bg-amber-500/35',
+    topLine: 'via-amber-300/80',
+    badgeClass:
+      'bg-amber-950/80 border border-gothic-gold/60 text-amber-200 shadow-sm backdrop-blur-md',
+    sparkleClass: 'text-gothic-gold animate-pulse',
+    avatarClass: 'border-2 border-gothic-gold/80 shadow-gold-glow',
+    titleClass: 'text-white group-hover:text-gothic-gold gold-glow',
+    dividerClass: 'border-gothic-gold/30',
+    linkClass: 'text-gothic-gold hover:text-white',
+  },
+  purple: {
+    cardClass: 'purple-crystal-card',
+    orbTop: 'bg-purple-500/25 group-hover:bg-purple-500/40',
+    orbBottom: 'bg-purple-800/20 group-hover:bg-purple-600/35',
+    topLine: 'via-purple-300/80',
+    badgeClass:
+      'bg-purple-950/80 border border-purple-400/60 text-purple-200 shadow-sm backdrop-blur-md',
+    sparkleClass: 'text-purple-400 animate-pulse',
+    avatarClass: 'border-2 border-purple-400/80 shadow-[0_0_16px_rgba(168,85,247,0.45)]',
+    titleClass: 'text-white group-hover:text-purple-300 purple-glow',
+    dividerClass: 'border-purple-500/25',
+    linkClass: 'text-purple-300 hover:text-white',
+  },
+  blue: {
+    cardClass: 'blue-crystal-card',
+    orbTop: 'bg-sky-500/25 group-hover:bg-sky-400/40',
+    orbBottom: 'bg-blue-700/20 group-hover:bg-blue-500/35',
+    topLine: 'via-sky-300/80',
+    badgeClass:
+      'bg-sky-950/80 border border-sky-400/60 text-sky-200 shadow-sm backdrop-blur-md',
+    sparkleClass: 'text-sky-400 animate-pulse',
+    avatarClass: 'border-2 border-sky-400/80 shadow-[0_0_16px_rgba(56,189,248,0.45)]',
+    titleClass: 'text-white group-hover:text-sky-300 blue-glow',
+    dividerClass: 'border-sky-500/25',
+    linkClass: 'text-sky-300 hover:text-white',
+  },
+  pink: {
+    cardClass: 'pink-crystal-card',
+    orbTop: 'bg-pink-500/25 group-hover:bg-pink-400/40',
+    orbBottom: 'bg-pink-700/20 group-hover:bg-pink-500/35',
+    topLine: 'via-pink-300/80',
+    badgeClass:
+      'bg-pink-950/80 border border-pink-400/60 text-pink-200 shadow-sm backdrop-blur-md',
+    sparkleClass: 'text-pink-400 animate-pulse',
+    avatarClass: 'border-2 border-pink-400/80 shadow-[0_0_16px_rgba(244,114,182,0.45)]',
+    titleClass: 'text-white group-hover:text-pink-300 pink-glow',
+    dividerClass: 'border-pink-500/25',
+    linkClass: 'text-pink-300 hover:text-white',
+  },
+  none: {
+    cardClass:
+      'bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 hover:shadow-gold-glow',
+    orbTop: '',
+    orbBottom: '',
+    topLine: '',
+    badgeClass: 'bg-zinc-900 border border-gothic-gold/30 text-gothic-gold',
+    sparkleClass: 'text-gothic-gold/70',
+    avatarClass: 'border border-gothic-gold/40',
+    titleClass: 'text-white group-hover:text-gothic-gold',
+    dividerClass: 'border-zinc-800',
+    linkClass: 'text-gothic-gold hover:text-white',
+  },
+};
 
 export default function SupportersSection() {
   const [supporters, setSupporters] = useState<Supporter[]>(INITIAL_SUPPORTERS);
@@ -197,38 +305,27 @@ export default function SupportersSection() {
             }`}
           >
             {trackItems.map((supporter, idx) => {
-              const order = supporter.sort_order ?? 0;
-              const isCrimsonOwner = Boolean(
-                supporter.crystal_style === 'crimson' || supporter.is_owner || order <= -2
-              );
-              const isGoldCrystal = Boolean(
-                !isCrimsonOwner &&
-                  (supporter.crystal_style === 'gold' || supporter.is_gold_crystal || order === -1)
-              );
+              const style = resolveSupporterStyle(supporter);
+              const t = CRYSTAL_THEME[style];
+              const isCrystal = style !== 'none';
 
               return (
                 <div
                   key={`${supporter.id || supporter.name}-${idx}`}
-                  className={`group relative w-[270px] sm:w-[370px] shrink-0 rounded-2xl p-5 sm:p-7 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 overflow-hidden ${
-                    isCrimsonOwner
-                      ? 'crimson-crystal-card'
-                      : isGoldCrystal
-                      ? 'gold-crystal-card'
-                      : 'bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 hover:border-gothic-gold/50 hover:shadow-gold-glow'
-                  }`}
+                  className={`group relative w-[270px] sm:w-[370px] shrink-0 rounded-2xl p-5 sm:p-7 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 overflow-hidden ${t.cardClass}`}
                 >
                   {/* Reflexo Cristal e Brilho de Fundo */}
-                  {isCrimsonOwner ? (
+                  {isCrystal ? (
                     <>
-                      <div className="pointer-events-none absolute -top-12 -right-12 w-40 h-40 bg-lycoris-500/20 rounded-full blur-3xl group-hover:bg-lycoris-500/35 transition-all duration-500" />
-                      <div className="pointer-events-none absolute -bottom-12 -left-12 w-36 h-36 bg-lycoris-700/20 rounded-full blur-3xl group-hover:bg-lycoris-600/35 transition-all duration-500" />
-                      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-lycoris-300/70 to-transparent" />
-                    </>
-                  ) : isGoldCrystal ? (
-                    <>
-                      <div className="pointer-events-none absolute -top-12 -right-12 w-40 h-40 bg-gothic-gold/25 rounded-full blur-3xl group-hover:bg-gothic-gold/40 transition-all duration-500" />
-                      <div className="pointer-events-none absolute -bottom-12 -left-12 w-36 h-36 bg-amber-600/20 rounded-full blur-3xl group-hover:bg-amber-500/35 transition-all duration-500" />
-                      <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-amber-300/80 to-transparent" />
+                      <div
+                        className={`pointer-events-none absolute -top-12 -right-12 w-40 h-40 rounded-full blur-3xl transition-all duration-500 ${t.orbTop}`}
+                      />
+                      <div
+                        className={`pointer-events-none absolute -bottom-12 -left-12 w-36 h-36 rounded-full blur-3xl transition-all duration-500 ${t.orbBottom}`}
+                      />
+                      <div
+                        className={`pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent to-transparent ${t.topLine}`}
+                      />
                     </>
                   ) : (
                     <div className="pointer-events-none absolute top-0 right-0 w-32 h-32 bg-gothic-gold/5 rounded-full blur-3xl group-hover:bg-gothic-gold/15 transition-all" />
@@ -237,27 +334,15 @@ export default function SupportersSection() {
                   <div className="relative z-10 space-y-4">
                     <div className="flex items-center justify-between">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 ${
-                          isCrimsonOwner
-                            ? 'bg-lycoris-950/80 border border-lycoris-400/50 text-lycoris-200 shadow-sm backdrop-blur-md'
-                            : isGoldCrystal
-                            ? 'bg-amber-950/80 border border-gothic-gold/60 text-amber-200 shadow-sm backdrop-blur-md'
-                            : 'bg-zinc-900 border border-gothic-gold/30 text-gothic-gold'
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 ${t.badgeClass}`}
                       >
-                        {isCrimsonOwner && <Crown className="w-3.5 h-3.5 text-lycoris-400" />}
-                        {isGoldCrystal && <Sparkles className="w-3.5 h-3.5 text-gothic-gold" />}
+                        {style === 'crimson' && <Crown className="w-3.5 h-3.5 text-lycoris-400" />}
+                        {style !== 'crimson' && isCrystal && (
+                          <Sparkles className={`w-3.5 h-3.5 ${t.sparkleClass.replace('animate-pulse', '')}`} />
+                        )}
                         {supporter.role}
                       </span>
-                      <Sparkles
-                        className={`w-4 h-4 ${
-                          isCrimsonOwner
-                            ? 'text-lycoris-400 animate-pulse'
-                            : isGoldCrystal
-                            ? 'text-gothic-gold animate-pulse'
-                            : 'text-gothic-gold/70'
-                        }`}
-                      />
+                      <Sparkles className={`w-4 h-4 ${t.sparkleClass}`} />
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -267,23 +352,11 @@ export default function SupportersSection() {
                           src={supporter.avatar}
                           alt={supporter.name}
                           draggable={false}
-                          className={`w-12 h-12 rounded-full object-cover shrink-0 ${
-                            isCrimsonOwner
-                              ? 'border-2 border-lycoris-400/70 shadow-lycoris-glow'
-                              : isGoldCrystal
-                              ? 'border-2 border-gothic-gold/80 shadow-gold-glow'
-                              : 'border border-gothic-gold/40'
-                          }`}
+                          className={`w-12 h-12 rounded-full object-cover shrink-0 ${t.avatarClass}`}
                         />
                       )}
                       <h3
-                        className={`font-serif text-2xl sm:text-3xl font-bold transition-colors truncate ${
-                          isCrimsonOwner
-                            ? 'text-white group-hover:text-lycoris-300 text-glow'
-                            : isGoldCrystal
-                            ? 'text-white group-hover:text-gothic-gold gold-glow'
-                            : 'text-white group-hover:text-gothic-gold'
-                        }`}
+                        className={`font-serif text-2xl sm:text-3xl font-bold transition-colors truncate ${t.titleClass}`}
                       >
                         {supporter.name}
                       </h3>
@@ -296,15 +369,7 @@ export default function SupportersSection() {
                     )}
                   </div>
 
-                  <div
-                    className={`relative z-10 pt-5 mt-5 border-t ${
-                      isCrimsonOwner
-                        ? 'border-lycoris-500/25'
-                        : isGoldCrystal
-                        ? 'border-gothic-gold/30'
-                        : 'border-zinc-800'
-                    }`}
-                  >
+                  <div className={`relative z-10 pt-5 mt-5 border-t ${t.dividerClass}`}>
                     <a
                       href={supporter.url}
                       target="_blank"
@@ -315,11 +380,7 @@ export default function SupportersSection() {
                           e.preventDefault();
                         }
                       }}
-                      className={`inline-flex items-center gap-2 text-sm font-semibold transition-colors group-hover:translate-x-1 duration-200 ${
-                        isCrimsonOwner
-                          ? 'text-lycoris-300 hover:text-white'
-                          : 'text-gothic-gold hover:text-white'
-                      }`}
+                      className={`inline-flex items-center gap-2 text-sm font-semibold transition-colors group-hover:translate-x-1 duration-200 ${t.linkClass}`}
                     >
                       <span>Conheça</span>
                       <ExternalLink className="w-4 h-4" />

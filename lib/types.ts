@@ -46,6 +46,8 @@ export interface GalleryImage {
   sort_order?: number;
 }
 
+export type SupporterCrystalStyle = 'none' | 'crimson' | 'gold' | 'purple' | 'blue' | 'pink';
+
 export interface Supporter {
   id?: string;
   name: string;
@@ -57,7 +59,7 @@ export interface Supporter {
   sort_order?: number;
   is_owner?: boolean;
   is_gold_crystal?: boolean;
-  crystal_style?: 'none' | 'crimson' | 'gold';
+  crystal_style?: SupporterCrystalStyle;
 }
 
 export interface EventRegistration {

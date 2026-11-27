@@ -43,6 +43,7 @@ import {
   GalleryImage,
   CommentItem,
   Supporter,
+  SupporterCrystalStyle,
   EventRegistration,
   HeroStat,
   HomePageContent,
@@ -88,7 +89,82 @@ const EMPTY_SUPPORTER = {
   banner_url: '',
   is_owner: false,
   is_gold_crystal: false,
+  crystal_style: 'none' as SupporterCrystalStyle,
 };
+
+function getSupporterCrystalStyle(s: Supporter): SupporterCrystalStyle {
+  if (s.crystal_style && s.crystal_style !== 'none') return s.crystal_style;
+  if (s.is_owner) return 'crimson';
+  if (s.is_gold_crystal) return 'gold';
+  const order = s.sort_order ?? 0;
+  if (order === -2 || order <= -6) return 'crimson';
+  if (order === -1) return 'gold';
+  if (order === -3) return 'purple';
+  if (order === -4) return 'blue';
+  if (order === -5) return 'pink';
+  return 'none';
+}
+
+const SUPPORTER_COLOR_OPTIONS: {
+  key: SupporterCrystalStyle;
+  label: string;
+  dotClass: string;
+  activeClass: string;
+  badgeLabel: string;
+  badgeClass: string;
+}[] = [
+  {
+    key: 'none',
+    label: 'Padrão',
+    dotClass: 'bg-zinc-600 border-zinc-400/50',
+    activeClass: 'bg-zinc-800 border-zinc-500 text-white',
+    badgeLabel: '',
+    badgeClass: '',
+  },
+  {
+    key: 'crimson',
+    label: 'Vermelho',
+    dotClass: 'bg-lycoris-500 shadow-[0_0_8px_rgba(244,63,94,0.85)]',
+    activeClass: 'bg-lycoris-950/90 border-lycoris-500 text-lycoris-200 shadow-lycoris-glow',
+    badgeLabel: 'Cristal Vermelho',
+    badgeClass: 'bg-lycoris-600/20 border-lycoris-500/45 text-lycoris-300',
+  },
+  {
+    key: 'gold',
+    label: 'Dourado',
+    dotClass: 'bg-gothic-gold shadow-[0_0_8px_rgba(218,175,55,0.85)]',
+    activeClass: 'bg-amber-950/90 border-gothic-gold text-gothic-gold shadow-gold-glow',
+    badgeLabel: 'Cristal Dourado',
+    badgeClass: 'bg-gothic-gold/15 border-gothic-gold/50 text-gothic-gold',
+  },
+  {
+    key: 'purple',
+    label: 'Roxo',
+    dotClass: 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.85)]',
+    activeClass:
+      'bg-purple-950/90 border-purple-400 text-purple-200 shadow-[0_0_16px_-3px_rgba(168,85,247,0.5)]',
+    badgeLabel: 'Cristal Roxo',
+    badgeClass: 'bg-purple-600/20 border-purple-400/45 text-purple-300',
+  },
+  {
+    key: 'blue',
+    label: 'Azul',
+    dotClass: 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.85)]',
+    activeClass:
+      'bg-sky-950/90 border-sky-400 text-sky-200 shadow-[0_0_16px_-3px_rgba(56,189,248,0.5)]',
+    badgeLabel: 'Cristal Azul',
+    badgeClass: 'bg-sky-600/20 border-sky-400/45 text-sky-300',
+  },
+  {
+    key: 'pink',
+    label: 'Rosa',
+    dotClass: 'bg-pink-400 shadow-[0_0_8px_rgba(244,114,182,0.85)]',
+    activeClass:
+      'bg-pink-950/90 border-pink-400 text-pink-200 shadow-[0_0_16px_-3px_rgba(244,114,182,0.5)]',
+    badgeLabel: 'Cristal Rosa',
+    badgeClass: 'bg-pink-600/20 border-pink-400/45 text-pink-300',
+  },
+];
 const EMPTY_EVENT = {
   title: '',
   description: '',
@@ -1117,11 +1193,7 @@ export default function AdminPage() {
   const handleEditSupporter = (s: Supporter) => {
     setEditingSupporterId(s.id || null);
     setSupporterBannerStats(null);
-    const order = s.sort_order ?? 0;
-    const isCrimson = Boolean(s.crystal_style === 'crimson' || s.is_owner || order <= -2);
-    const isGold = Boolean(
-      !isCrimson && (s.crystal_style === 'gold' || s.is_gold_crystal || order === -1)
-    );
+    const style = getSupporterCrystalStyle(s);
     setSupporterForm({
       name: s.name,
       url: s.url,
@@ -1129,8 +1201,9 @@ export default function AdminPage() {
       role: s.role || 'Apoiador',
       avatar: s.avatar || '',
       banner_url: s.banner_url || '',
-      is_owner: isCrimson,
-      is_gold_crystal: isGold,
+      is_owner: style === 'crimson',
+      is_gold_crystal: style === 'gold',
+      crystal_style: style,
     });
   };
 
@@ -2664,55 +2737,46 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                {/* Toggle Efeito Cristal Glass Vermelho (Dona / Destaque) */}
-                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-lycoris-950/70 via-zinc-900 to-zinc-950 border border-lycoris-700/50 hover:border-lycoris-500 cursor-pointer transition-all">
-                  <input
-                    type="checkbox"
-                    checked={supporterForm.is_owner}
-                    onChange={(e) =>
-                      setSupporterForm({
-                        ...supporterForm,
-                        is_owner: e.target.checked,
-                        is_gold_crystal: e.target.checked ? false : supporterForm.is_gold_crystal,
-                      })
-                    }
-                    className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer"
-                  />
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-lycoris-200 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-lycoris-400" />
-                      Destaque Carmesim Cristal Glass (Dona / Fundadora)
-                    </span>
-                    <span className="block text-[11px] text-zinc-400 leading-snug">
-                      Troca o brilho dourado por vermelho carmesim translúcido em estilo cristal glass.
+                {/* Seletor Simplificado das 5 Variações de Cor Cristal Glass */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-gothic-gold" />
+                      <span>Cor de Destaque Cristal Glass</span>
+                    </label>
+                    <span className="text-[10px] text-zinc-500">
+                      Clique na cor desejada
                     </span>
                   </div>
-                </label>
 
-                {/* Toggle Efeito Cristal Glass Dourado */}
-                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-gradient-to-r from-[#2c2107]/70 via-zinc-900 to-zinc-950 border border-gold-500/45 hover:border-gold-400 cursor-pointer transition-all">
-                  <input
-                    type="checkbox"
-                    checked={supporterForm.is_gold_crystal}
-                    onChange={(e) =>
-                      setSupporterForm({
-                        ...supporterForm,
-                        is_gold_crystal: e.target.checked,
-                        is_owner: e.target.checked ? false : supporterForm.is_owner,
-                      })
-                    }
-                    className="mt-0.5 w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                  />
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-gold-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-gold-400" />
-                      Destaque Dourado Cristal Glass (Parceiro VIP)
-                    </span>
-                    <span className="block text-[11px] text-zinc-400 leading-snug">
-                      Aplica o efeito translúcido em estilo cristal glass na temática dourada do site.
-                    </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {SUPPORTER_COLOR_OPTIONS.map((opt) => {
+                      const isSelected = supporterForm.crystal_style === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() =>
+                            setSupporterForm({
+                              ...supporterForm,
+                              crystal_style: opt.key,
+                              is_owner: opt.key === 'crimson',
+                              is_gold_crystal: opt.key === 'gold',
+                            })
+                          }
+                          className={`py-2 px-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                            isSelected
+                              ? opt.activeClass
+                              : 'bg-zinc-900/70 hover:bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${opt.dotClass}`} />
+                          <span>{opt.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                </label>
+                </div>
 
                 <div className="flex gap-2">
                   <button
@@ -2750,25 +2814,22 @@ export default function AdminPage() {
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-white text-sm">{s.name}</span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded border ${
-                          (s.sort_order ?? 0) <= -2
-                            ? 'bg-lycoris-950/80 border-lycoris-500/50 text-lycoris-300 font-semibold'
-                            : 'border-gothic-gold/30 text-gothic-gold'
-                        }`}
-                      >
+                      <span className="text-[10px] px-2 py-0.5 rounded border border-gothic-gold/30 text-gothic-gold">
                         {s.role}
                       </span>
-                      {(s.sort_order ?? 0) <= -2 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-lycoris-600/20 border border-lycoris-500/40 text-lycoris-300 font-semibold">
-                          Cristal Carmesim
-                        </span>
-                      )}
-                      {(s.sort_order ?? 0) === -1 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gothic-gold/15 border border-gothic-gold/50 text-gothic-gold font-semibold">
-                          Cristal Dourado
-                        </span>
-                      )}
+                      {(() => {
+                        const style = getSupporterCrystalStyle(s);
+                        const opt = SUPPORTER_COLOR_OPTIONS.find((o) => o.key === style);
+                        if (!opt || opt.key === 'none') return null;
+                        return (
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold inline-flex items-center gap-1.5 ${opt.badgeClass}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${opt.dotClass}`} />
+                            <span>{opt.badgeLabel}</span>
+                          </span>
+                        );
+                      })()}
                       {s.banner_url && (
                         <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
                           Com fundo em /apoiadores

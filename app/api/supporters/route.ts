@@ -55,16 +55,40 @@ async function saveSupporterBanners(map: Record<string, string>): Promise<void> 
   }
 }
 
+import { SupporterCrystalStyle } from '@/lib/types';
+
+const STYLE_PRIORITY: Record<SupporterCrystalStyle, number> = {
+  crimson: 0,
+  gold: 1,
+  purple: 2,
+  blue: 3,
+  pink: 4,
+  none: 5,
+};
+
 function resolveSortOrder(body: any): number {
-  if (body.crystal_style === 'crimson' || body.is_owner) return -2;
-  if (body.crystal_style === 'gold' || body.is_gold_crystal) return -1;
+  const style = String(body.crystal_style || '').toLowerCase();
+  if (style === 'crimson' || body.is_owner) return -2;
+  if (style === 'gold' || body.is_gold_crystal) return -1;
+  if (style === 'purple') return -3;
+  if (style === 'blue') return -4;
+  if (style === 'pink') return -5;
   return Number(body.sort_order) >= 0 ? Number(body.sort_order) : 0;
+}
+
+function resolveCrystalStyleFromOrder(order: number, rawStyle?: SupporterCrystalStyle): SupporterCrystalStyle {
+  if (rawStyle && rawStyle in STYLE_PRIORITY && rawStyle !== 'none') return rawStyle;
+  if (order === -2 || order <= -6) return 'crimson';
+  if (order === -1) return 'gold';
+  if (order === -3) return 'purple';
+  if (order === -4) return 'blue';
+  if (order === -5) return 'pink';
+  return 'none';
 }
 
 function enrichSupporter(s: any, banners: Record<string, string>) {
   const order = Number(s.sort_order ?? 0);
-  const style: 'none' | 'crimson' | 'gold' =
-    order <= -2 ? 'crimson' : order === -1 ? 'gold' : 'none';
+  const style = resolveCrystalStyleFromOrder(order, s.crystal_style);
   return {
     ...s,
     banner_url: banners[s.id] || null,
@@ -72,6 +96,15 @@ function enrichSupporter(s: any, banners: Record<string, string>) {
     is_gold_crystal: style === 'gold',
     crystal_style: style,
   };
+}
+
+function sortEnrichedSupporters(list: any[]) {
+  return [...list].sort((a, b) => {
+    const pa = STYLE_PRIORITY[(a.crystal_style as SupporterCrystalStyle) || 'none'] ?? 5;
+    const pb = STYLE_PRIORITY[(b.crystal_style as SupporterCrystalStyle) || 'none'] ?? 5;
+    if (pa !== pb) return pa - pb;
+    return 0;
+  });
 }
 
 export async function GET() {
@@ -84,10 +117,14 @@ export async function GET() {
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (!error && data) {
-      return NextResponse.json(data.map((s) => enrichSupporter(s, banners)));
+      return NextResponse.json(
+        sortEnrichedSupporters(data.map((s) => enrichSupporter(s, banners)))
+      );
     }
   }
-  return NextResponse.json(localSupporters.map((s) => enrichSupporter(s, banners)));
+  return NextResponse.json(
+    sortEnrichedSupporters(localSupporters.map((s) => enrichSupporter(s, banners)))
+  );
 }
 
 export async function POST(request: Request) {
