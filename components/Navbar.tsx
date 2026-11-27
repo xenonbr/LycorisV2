@@ -19,9 +19,11 @@ export default function Navbar() {
   return (
     <header
       style={{ '--reveal-delay': '60ms' } as React.CSSProperties}
-      className={`lycoris-reveal-step fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-gothic-bg/85 backdrop-blur-md border-b border-lycoris-900/30 shadow-lycoris-glow'
+      className={`lycoris-reveal-step fixed top-0 left-0 right-0 z-[70] transition-all duration-300 ${
+        mobileMenuOpen
+          ? 'bg-[#080808] border-b border-lycoris-900/40 shadow-2xl'
+          : scrolled
+          ? 'bg-gothic-bg/90 backdrop-blur-md border-b border-lycoris-900/30 shadow-lycoris-glow'
           : 'bg-transparent'
       }`}
     >
@@ -113,11 +115,11 @@ export default function Navbar() {
 
       {/* Drawer Mobile */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-gothic-bg/98 border-b border-lycoris-900/40 backdrop-blur-xl px-5 py-5 space-y-1 shadow-2xl">
+        <div className="md:hidden bg-[#080808]/95 border-b border-lycoris-800/50 backdrop-blur-2xl px-5 py-5 space-y-1.5 shadow-[0_25px_50px_rgba(0,0,0,0.95)]">
           <Link
             href="/#sobre"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
+            className="flex items-center gap-3 text-zinc-100 hover:bg-zinc-900 active:text-lycoris-400 font-medium py-3 px-3.5 rounded-xl bg-zinc-950/80 border border-zinc-900"
           >
             <Sparkles className="w-4 h-4 text-lycoris-500" />
             <span>Sobre</span>
@@ -125,7 +127,7 @@ export default function Navbar() {
           <Link
             href="/#eventos"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
+            className="flex items-center gap-3 text-zinc-100 hover:bg-zinc-900 active:text-lycoris-400 font-medium py-3 px-3.5 rounded-xl bg-zinc-950/80 border border-zinc-900"
           >
             <Calendar className="w-4 h-4 text-lycoris-500" />
             <span>Eventos</span>
@@ -133,7 +135,7 @@ export default function Navbar() {
           <Link
             href="/galeria"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
+            className="flex items-center gap-3 text-zinc-100 hover:bg-zinc-900 active:text-lycoris-400 font-medium py-3 px-3.5 rounded-xl bg-zinc-950/80 border border-zinc-900"
           >
             <ImageIcon className="w-4 h-4 text-lycoris-500" />
             <span>Galeria Comunitária</span>
@@ -141,7 +143,7 @@ export default function Navbar() {
           <Link
             href="/apoiadores"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 text-zinc-200 active:text-lycoris-400 font-medium py-3 px-3 rounded-xl active:bg-zinc-900/80"
+            className="flex items-center gap-3 text-zinc-100 hover:bg-zinc-900 active:text-lycoris-400 font-medium py-3 px-3.5 rounded-xl bg-zinc-950/80 border border-zinc-900"
           >
             <HeartHandshake className="w-4 h-4 text-gothic-gold" />
             <span>Parceiros &amp; Apoiadores</span>
@@ -149,7 +151,7 @@ export default function Navbar() {
           <Link
             href="/sawvr"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 text-gothic-gold font-semibold py-3 px-3 rounded-xl bg-zinc-900/60 border border-gothic-gold/30"
+            className="flex items-center gap-3 text-gothic-gold font-semibold py-3 px-3.5 rounded-xl bg-zinc-900/90 border border-gothic-gold/35"
           >
             <ShoppingBag className="w-4 h-4 text-gothic-gold" />
             <span>Catálogo SawVR (VR &amp; Eletrônicos)</span>
