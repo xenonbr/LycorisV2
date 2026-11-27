@@ -477,11 +477,11 @@ export default function PartnerStoreCatalogView({ slug }: { slug: string }) {
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overscroll-contain"
+            className="lycoris-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overscroll-contain"
             onClick={() => setActiveItem(null)}
           >
             <div
-              className="relative max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-zinc-950 border border-gothic-gold/40 shadow-2xl p-6 space-y-5"
+              className="lycoris-modal-panel relative max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-zinc-950 border border-gothic-gold/40 shadow-2xl p-6 space-y-5"
               onClick={(e) => e.stopPropagation()}
             >
               <button

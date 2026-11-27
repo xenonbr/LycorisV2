@@ -50,37 +50,37 @@ export default function Navbar() {
         <nav className="hidden md:flex items-center gap-7 font-sans text-sm font-medium text-zinc-300">
           <Link
             href="/#sobre"
-            className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
+            className="group/nav relative py-1 hover:text-lycoris-400 active:scale-95 transition-all duration-200 flex items-center gap-1.5 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:bg-lycoris-500 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-center"
           >
-            <Sparkles className="w-4 h-4 text-lycoris-500" />
+            <Sparkles className="w-4 h-4 text-lycoris-500 transition-transform duration-200 group-hover/nav:scale-110" />
             Sobre
           </Link>
           <Link
             href="/#eventos"
-            className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
+            className="group/nav relative py-1 hover:text-lycoris-400 active:scale-95 transition-all duration-200 flex items-center gap-1.5 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:bg-lycoris-500 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-center"
           >
-            <Calendar className="w-4 h-4 text-lycoris-500" />
+            <Calendar className="w-4 h-4 text-lycoris-500 transition-transform duration-200 group-hover/nav:scale-110" />
             Eventos
           </Link>
           <Link
             href="/galeria"
-            className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
+            className="group/nav relative py-1 hover:text-lycoris-400 active:scale-95 transition-all duration-200 flex items-center gap-1.5 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:bg-lycoris-500 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-center"
           >
-            <ImageIcon className="w-4 h-4 text-lycoris-500" />
+            <ImageIcon className="w-4 h-4 text-lycoris-500 transition-transform duration-200 group-hover/nav:scale-110" />
             Galeria
           </Link>
           <Link
             href="/apoiadores"
-            className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
+            className="group/nav relative py-1 hover:text-lycoris-400 active:scale-95 transition-all duration-200 flex items-center gap-1.5 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:bg-gothic-gold after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-center"
           >
-            <HeartHandshake className="w-4 h-4 text-gothic-gold" />
+            <HeartHandshake className="w-4 h-4 text-gothic-gold transition-transform duration-200 group-hover/nav:scale-110" />
             Parceiros
           </Link>
           <Link
             href="/lojas"
-            className="hover:text-lycoris-400 transition-colors flex items-center gap-1.5"
+            className="group/nav relative py-1 hover:text-lycoris-400 active:scale-95 transition-all duration-200 flex items-center gap-1.5 after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:bg-gothic-gold after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-center"
           >
-            <ShoppingBag className="w-4 h-4 text-gothic-gold" />
+            <ShoppingBag className="w-4 h-4 text-gothic-gold transition-transform duration-200 group-hover/nav:scale-110" />
             Lojas Parceiras
           </Link>
         </nav>
@@ -113,9 +113,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Drawer Mobile */}
+      {/* Drawer Mobile com animação suave de abertura */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#080808]/95 border-b border-lycoris-800/50 backdrop-blur-2xl px-5 py-5 space-y-1.5 shadow-[0_25px_50px_rgba(0,0,0,0.95)]">
+        <div className="lycoris-expand-panel md:hidden bg-[#080808]/95 border-b border-lycoris-800/50 backdrop-blur-2xl px-5 py-5 space-y-1.5 shadow-[0_25px_50px_rgba(0,0,0,0.95)]">
           <Link
             href="/#sobre"
             onClick={() => setMobileMenuOpen(false)}

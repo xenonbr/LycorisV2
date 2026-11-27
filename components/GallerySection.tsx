@@ -339,11 +339,11 @@ export default function GallerySection({
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md p-0 sm:p-6 overscroll-contain"
+            className="lycoris-modal-backdrop fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md p-0 sm:p-6 overscroll-contain"
             onClick={closeLightbox}
           >
             <div
-              className="relative max-w-6xl w-full max-h-[94dvh] sm:max-h-[92vh] lg:h-[86vh] bg-gothic-card rounded-t-2xl sm:rounded-2xl border-t sm:border border-lycoris-900/50 shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row overscroll-contain"
+              className="lycoris-modal-panel relative max-w-6xl w-full max-h-[94dvh] sm:max-h-[92vh] lg:h-[86vh] bg-gothic-card rounded-t-2xl sm:rounded-2xl border-t sm:border border-lycoris-900/50 shadow-2xl overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row overscroll-contain"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -518,7 +518,7 @@ export default function GallerySection({
                   e.stopPropagation();
                   setIsFullscreenPhoto(false);
                 }}
-                className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 sm:p-6 cursor-zoom-out"
+                className="lycoris-modal-backdrop fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 sm:p-6 cursor-zoom-out"
               >
                 <button
                   type="button"
@@ -536,7 +536,7 @@ export default function GallerySection({
                 <img
                   src={activeImage.url}
                   alt={activeImage.title || 'Foto em tela cheia'}
-                  className="max-w-[98vw] max-h-[95dvh] w-auto h-auto object-contain rounded-lg shadow-2xl select-none"
+                  className="lycoris-modal-panel max-w-[98vw] max-h-[95dvh] w-auto h-auto object-contain rounded-lg shadow-2xl select-none"
                 />
               </div>
             )}

@@ -2113,6 +2113,10 @@ export default function AdminPage() {
             ))}
         </div>
 
+        <div
+          key={`${activeTab}-${selectedStoreId}-${isCreatingStore ? 'new' : 'view'}`}
+          className="lycoris-tab-panel"
+        >
         {/* ============================================================== */}
         {/* ABA 1: EVENTOS */}
         {/* ============================================================== */}
@@ -3966,7 +3970,7 @@ export default function AdminPage() {
                 </div>
 
                 {showStoreEditor && (
-                  <form onSubmit={handleSavePartnerStore} className="p-6 space-y-5">
+                  <form onSubmit={handleSavePartnerStore} className="lycoris-expand-panel p-6 space-y-5">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                       <div className="md:col-span-5">
                         <label className="block text-xs text-zinc-400 mb-1">
@@ -5353,6 +5357,7 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </main>
   );

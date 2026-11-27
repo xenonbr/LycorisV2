@@ -287,7 +287,7 @@ export default function GaleriaPage() {
         className="lycoris-reveal-step relative py-4 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full z-10"
       >
         {!isUploadOpen ? (
-          <div className="flex flex-col items-center justify-center gap-3">
+          <div className="lycoris-tab-panel flex flex-col items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => {
@@ -309,7 +309,7 @@ export default function GaleriaPage() {
             )}
           </div>
         ) : (
-          <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-950/90 via-zinc-900/85 to-zinc-950/95 border border-lycoris-800/50 p-6 sm:p-8 shadow-lycoris-glow backdrop-blur-md">
+          <div className="lycoris-expand-panel relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-950/90 via-zinc-900/85 to-zinc-950/95 border border-lycoris-800/50 p-6 sm:p-8 shadow-lycoris-glow backdrop-blur-md">
             <div className="pointer-events-none absolute -top-16 -right-16 w-48 h-48 bg-lycoris-600/15 rounded-full blur-3xl" />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-lycoris-400/70 to-transparent" />
 

@@ -374,13 +374,13 @@ export default function EventsSection() {
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overscroll-contain"
+            className="lycoris-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overscroll-contain"
             onClick={closeRegistration}
           >
             <div
               role="dialog"
               aria-modal="true"
-              className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl bg-zinc-950 border border-lycoris-800/60 p-6 shadow-lycoris-glow space-y-4"
+              className="lycoris-modal-panel relative w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl bg-zinc-950 border border-lycoris-800/60 p-6 shadow-lycoris-glow space-y-4"
               onClick={(e) => e.stopPropagation()}
             >
               <button
