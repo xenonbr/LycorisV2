@@ -76,6 +76,30 @@ export interface HeroStat {
   color?: 'lycoris-400' | 'gothic-gold' | 'white' | 'lycoris-500';
 }
 
+export interface HomePageContent {
+  // Banner Principal (Hero)
+  heroBadge: string;
+  heroQuote: string;
+  heroBullets: string[];
+  heroInviteQuote: string;
+  heroCtaText: string;
+  heroCtaUrl: string;
+  // Seção Sobre / Manifesto da Comunidade
+  aboutBadge: string;
+  aboutTitleStart: string;
+  aboutTitleHighlight: string;
+  aboutTitleEnd: string;
+  aboutDescription: string;
+  block1Title: string;
+  block1Description: string;
+  block2Title: string;
+  block2Description: string;
+  brandImageUrl: string;
+  brandEyebrow: string;
+  brandTitle: string;
+  brandSubtitle: string;
+}
+
 export interface SawCatalogItem {
   id: string;
   title: string;
@@ -106,6 +130,7 @@ export type AdminModuleKey =
   | 'registrations'
   | 'supporters'
   | 'stats'
+  | 'homepage'
   | 'sawvr'
   | 'submissions'
   | 'comments'

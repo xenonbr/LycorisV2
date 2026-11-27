@@ -34,6 +34,9 @@ import {
   UserCheck,
   Edit3,
   Search,
+  Home,
+  Moon,
+  Compass,
 } from 'lucide-react';
 import {
   VRChatEvent,
@@ -42,13 +45,19 @@ import {
   Supporter,
   EventRegistration,
   HeroStat,
+  HomePageContent,
   SawCatalogItem,
   PendingGalleryPost,
   AdminModuleKey,
   AdminAccount,
   CommentIdentityBinding,
 } from '@/lib/types';
-import { INITIAL_EVENTS, INITIAL_GALLERY, INITIAL_HERO_STATS } from '@/lib/mockData';
+import {
+  INITIAL_EVENTS,
+  INITIAL_GALLERY,
+  INITIAL_HERO_STATS,
+  INITIAL_HOME_CONTENT,
+} from '@/lib/mockData';
 
 const TOKEN_KEY = 'lycoris_admin_token';
 const MASTER_TOKEN_KEY = 'lycoris_master_admin_token';
@@ -109,17 +118,29 @@ function isValidCalendarDate(dateStr?: string): boolean {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
-// Módulos que podem ser liberados individualmente para cada conta de acesso
-const ACCESS_MODULE_DEFS: { key: AdminModuleKey; title: string; desc: string }[] = [
-  { key: 'events', title: 'Eventos', desc: 'Criar, editar e remover eventos do calendário.' },
-  { key: 'gallery', title: 'Galeria de Fotos', desc: 'Publicar fotos, reordenar e ocultar imagens.' },
-  { key: 'registrations', title: 'Inscrições', desc: 'Ver inscritos por evento e baixar CSV.' },
-  { key: 'supporters', title: 'Apoiadores', desc: 'Gerenciar apoiadores, fundos e destaques Cristal Glass.' },
-  { key: 'stats', title: 'Destaques do Topo', desc: 'Editar as caixas de estatísticas do banner inicial.' },
-  { key: 'sawvr', title: 'Catálogo SawVR', desc: 'Publicar e gerenciar produtos na loja /sawvr.' },
-  { key: 'submissions', title: 'Aprovar Fotos', desc: 'Aprovar ou recusar fotos enviadas pela comunidade.' },
-  { key: 'comments', title: 'Moderação', desc: 'Excluir comentários e gerenciar palavras bloqueadas.' },
-  { key: 'users', title: 'Usuários & IPs', desc: 'Ver nicks por IP, editar nomes e desvincular/banir IPs.' },
+// Módulos que podem ser liberados individualmente para cada conta de acesso, divididos por categoria
+type AdminCategoryName = 'Eventos' | 'Galeria' | 'Lojas' | 'ADM';
+
+const ACCESS_MODULE_DEFS: {
+  key: AdminModuleKey;
+  title: string;
+  desc: string;
+  category: AdminCategoryName;
+}[] = [
+  // Divisão 1: Eventos
+  { key: 'events', title: 'Eventos', desc: 'Criar, editar e remover eventos do calendário.', category: 'Eventos' },
+  { key: 'registrations', title: 'Inscrições', desc: 'Ver inscritos por evento e baixar CSV.', category: 'Eventos' },
+  // Divisão 2: Galeria
+  { key: 'gallery', title: 'Galeria de Fotos', desc: 'Publicar fotos, reordenar e ocultar imagens.', category: 'Galeria' },
+  { key: 'submissions', title: 'Aprovar Fotos', desc: 'Aprovar ou recusar fotos enviadas pela comunidade.', category: 'Galeria' },
+  { key: 'comments', title: 'Moderação', desc: 'Excluir comentários e gerenciar palavras bloqueadas.', category: 'Galeria' },
+  // Divisão 3: Lojas
+  { key: 'sawvr', title: 'Catálogo SawVR', desc: 'Publicar e gerenciar produtos na loja /sawvr.', category: 'Lojas' },
+  // Divisão 4: ADM
+  { key: 'homepage', title: 'Página Inicial', desc: 'Editar os blocos do Manifesto da Comunidade e do banner principal.', category: 'ADM' },
+  { key: 'stats', title: 'Destaques do Topo', desc: 'Editar as 4 caixas de estatísticas do banner inicial.', category: 'ADM' },
+  { key: 'supporters', title: 'Apoiadores', desc: 'Gerenciar apoiadores, fundos e destaques Cristal Glass.', category: 'ADM' },
+  { key: 'users', title: 'Usuários & IPs', desc: 'Ver nicks por IP, editar nomes e desvincular/banir IPs.', category: 'ADM' },
 ];
 
 const EMPTY_SAW_ITEM = {
@@ -195,6 +216,7 @@ export default function AdminPage() {
     | 'gallery'
     | 'comments'
     | 'stats'
+    | 'homepage'
     | 'sawvr'
     | 'submissions'
     | 'users'
@@ -208,6 +230,7 @@ export default function AdminPage() {
     registrations: true,
     supporters: false,
     stats: false,
+    homepage: false,
     sawvr: false,
     submissions: false,
     comments: false,
@@ -231,6 +254,13 @@ export default function AdminPage() {
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
   const [supporters, setSupporters] = useState<Supporter[]>([]);
   const [heroStats, setHeroStats] = useState<HeroStat[]>(INITIAL_HERO_STATS);
+  const [homeContent, setHomeContent] = useState<HomePageContent>(INITIAL_HOME_CONTENT);
+  const [heroBulletsText, setHeroBulletsText] = useState<string>(
+    INITIAL_HOME_CONTENT.heroBullets.join('\n')
+  );
+  const [savingHomeContent, setSavingHomeContent] = useState(false);
+  const [uploadingHomeBrandImage, setUploadingHomeBrandImage] = useState(false);
+  const [homeBrandCompressionStats, setHomeBrandCompressionStats] = useState<string | null>(null);
   const [sawCatalog, setSawCatalog] = useState<SawCatalogItem[]>([]);
   const [sawForm, setSawForm] = useState(EMPTY_SAW_ITEM);
   const [editingSawId, setEditingSawId] = useState<string | null>(null);
@@ -473,19 +503,31 @@ export default function AdminPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [resEv, resGal, resComm, resReg, resSup, resStats, resMod, resSaw, resSub, resAcc] =
-        await Promise.all([
-          api('/api/events'),
-          api('/api/gallery?includeHidden=true'),
-          api('/api/comments'),
-          api('/api/registrations'),
-          api('/api/supporters'),
-          api('/api/stats'),
-          api('/api/moderation'),
-          api('/api/sawvr'),
-          api('/api/gallery/submissions'),
-          api('/api/access'),
-        ]);
+      const [
+        resEv,
+        resGal,
+        resComm,
+        resReg,
+        resSup,
+        resStats,
+        resHome,
+        resMod,
+        resSaw,
+        resSub,
+        resAcc,
+      ] = await Promise.all([
+        api('/api/events'),
+        api('/api/gallery?includeHidden=true'),
+        api('/api/comments'),
+        api('/api/registrations'),
+        api('/api/supporters'),
+        api('/api/stats'),
+        api('/api/homepage'),
+        api('/api/moderation'),
+        api('/api/sawvr'),
+        api('/api/gallery/submissions'),
+        api('/api/access'),
+      ]);
 
       if (resAcc.status === 401 || resReg.status === 401) {
         handleLogout(); // token expirado
@@ -496,6 +538,15 @@ export default function AdminPage() {
       if (resStats.ok) {
         const s = await resStats.json();
         if (Array.isArray(s) && s.length > 0) setHeroStats(s);
+      }
+      if (resHome.ok) {
+        const h = await resHome.json();
+        if (h && typeof h === 'object' && h.aboutBadge) {
+          setHomeContent((prev) => ({ ...prev, ...h }));
+          if (Array.isArray(h.heroBullets)) {
+            setHeroBulletsText(h.heroBullets.join('\n'));
+          }
+        }
       }
       if (resMod.ok) {
         const m = await resMod.json();
@@ -634,6 +685,7 @@ export default function AdminPage() {
         registrations: true,
         supporters: false,
         stats: false,
+        homepage: false,
         sawvr: false,
         submissions: false,
         comments: false,
@@ -954,6 +1006,87 @@ export default function AdminPage() {
     } finally {
       setSavingStats(false);
     }
+  };
+
+  // Edição dos Blocos da Página Inicial (Hero + Manifesto da Comunidade)
+  const handleHomeBrandImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingHomeBrandImage(true);
+    setHomeBrandCompressionStats('Comprimindo imagem do quadro da marca...');
+    try {
+      const originalSize = file.size;
+      const compressed = await compressImageFile(file, 1080, 0.85);
+      const savedPct = Math.max(0, Math.round((1 - compressed.size / originalSize) * 100));
+
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('folder', 'homepage');
+
+      const res = await api('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha no upload');
+
+      setHomeContent((prev) => ({ ...prev, brandImageUrl: data.url }));
+      setHomeBrandCompressionStats(
+        `Comprimido: ${formatBytes(originalSize)} → ${formatBytes(compressed.size)} (WebP, -${savedPct}%)`
+      );
+      showToast('Imagem do quadro da página inicial enviada!');
+    } catch (err: any) {
+      setHomeBrandCompressionStats(null);
+      showToast(err.message || 'Erro ao enviar imagem');
+    } finally {
+      setUploadingHomeBrandImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSaveHomeContent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingHomeContent(true);
+    try {
+      const bullets = heroBulletsText
+        .split('\n')
+        .map((line) => line.replace(/^[•\-*]\s*/, '').trim())
+        .filter((line) => line.length > 0);
+
+      const payload: HomePageContent = {
+        ...homeContent,
+        heroBullets: bullets.length > 0 ? bullets : INITIAL_HOME_CONTENT.heroBullets,
+      };
+
+      const res = await api('/api/homepage', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao salvar blocos da página inicial');
+        return;
+      }
+      if (data && data.aboutBadge) {
+        setHomeContent(data);
+        if (Array.isArray(data.heroBullets)) {
+          setHeroBulletsText(data.heroBullets.join('\n'));
+        }
+      }
+      showToast('Blocos da página inicial atualizados no site!');
+    } catch {
+      showToast('Erro de conexão ao salvar página inicial');
+    } finally {
+      setSavingHomeContent(false);
+    }
+  };
+
+  const handleResetHomeContent = () => {
+    if (!confirm('Restaurar os textos originais dos blocos da página inicial no formulário? (Clique em Salvar depois para aplicar no site)')) {
+      return;
+    }
+    setHomeContent({ ...INITIAL_HOME_CONTENT });
+    setHeroBulletsText(INITIAL_HOME_CONTENT.heroBullets.join('\n'));
+    setHomeBrandCompressionStats(null);
+    showToast('Textos originais carregados no formulário!');
   };
 
   // Apoiadores
@@ -1430,122 +1563,169 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Abas de Navegação Otimizadas e Compactas (sem barra de rolagem horizontal) */}
-        <div className="p-2 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md flex flex-wrap items-center gap-1.5">
+        {/* Abas de Navegação Divididas por Categorias (Eventos, Galeria, Lojas, ADM) */}
+        <div className="p-3 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md flex flex-wrap items-stretch gap-3">
           {[
             {
-              id: 'events' as const,
-              label: 'Eventos',
-              count: events.length,
-              icon: Calendar,
-              visible: canAccess('events'),
+              category: 'Eventos',
+              badgeColor: 'text-lycoris-400 border-lycoris-800/70 bg-lycoris-950/70',
+              tabs: [
+                {
+                  id: 'events' as const,
+                  label: 'Eventos',
+                  count: events.length,
+                  icon: Calendar,
+                  visible: canAccess('events'),
+                },
+                {
+                  id: 'registrations' as const,
+                  label: 'Inscrições',
+                  count: registrations.length,
+                  icon: Users,
+                  visible: canAccess('registrations'),
+                },
+              ],
             },
             {
-              id: 'gallery' as const,
-              label: 'Galeria',
-              count: gallery.length,
-              icon: ImageIcon,
-              visible: canAccess('gallery'),
+              category: 'Galeria',
+              badgeColor: 'text-rose-300 border-rose-800/60 bg-rose-950/50',
+              tabs: [
+                {
+                  id: 'gallery' as const,
+                  label: 'Galeria',
+                  count: gallery.length,
+                  icon: ImageIcon,
+                  visible: canAccess('gallery'),
+                },
+                {
+                  id: 'submissions' as const,
+                  label: 'Aprovar Fotos',
+                  count: pendingPosts.length,
+                  icon: Clock,
+                  alertBadge: pendingPosts.length > 0,
+                  visible: canAccess('submissions'),
+                },
+                {
+                  id: 'comments' as const,
+                  label: 'Moderação',
+                  count: allComments.length,
+                  icon: MessageSquare,
+                  visible: canAccess('comments'),
+                },
+              ],
             },
             {
-              id: 'registrations' as const,
-              label: 'Inscrições',
-              count: registrations.length,
-              icon: Users,
-              visible: canAccess('registrations'),
+              category: 'Lojas',
+              badgeColor: 'text-gothic-gold border-gothic-gold/40 bg-amber-950/40',
+              tabs: [
+                {
+                  id: 'sawvr' as const,
+                  label: 'SawVR',
+                  count: sawCatalog.length,
+                  icon: ShoppingBag,
+                  goldIcon: true,
+                  visible: canAccess('sawvr'),
+                },
+              ],
             },
             {
-              id: 'supporters' as const,
-              label: 'Apoiadores',
-              count: supporters.length,
-              icon: HeartHandshake,
-              visible: canAccess('supporters'),
-            },
-            {
-              id: 'stats' as const,
-              label: 'Destaques',
-              count: heroStats.length,
-              icon: Sparkles,
-              visible: canAccess('stats'),
-            },
-            {
-              id: 'sawvr' as const,
-              label: 'SawVR',
-              count: sawCatalog.length,
-              icon: ShoppingBag,
-              goldIcon: true,
-              visible: canAccess('sawvr'),
-            },
-            {
-              id: 'submissions' as const,
-              label: 'Aprovar Fotos',
-              count: pendingPosts.length,
-              icon: Clock,
-              alertBadge: pendingPosts.length > 0,
-              visible: canAccess('submissions'),
-            },
-            {
-              id: 'comments' as const,
-              label: 'Moderação',
-              count: allComments.length,
-              icon: MessageSquare,
-              visible: canAccess('comments'),
-            },
-            {
-              id: 'users' as const,
-              label: 'Usuários & IPs',
-              count: commentIdentities.length,
-              icon: UserCheck,
-              visible: canAccess('users'),
-            },
-            {
-              id: 'access' as const,
-              label: 'Acessos & Senhas',
-              count: 1 + accounts.length,
-              icon: KeyRound,
-              goldIcon: true,
-              visible: isMasterUnlocked,
+              category: 'ADM',
+              badgeColor: 'text-zinc-300 border-zinc-700/80 bg-zinc-900/90',
+              tabs: [
+                {
+                  id: 'homepage' as const,
+                  label: 'Página Inicial',
+                  count: 3,
+                  icon: Home,
+                  visible: canAccess('homepage'),
+                },
+                {
+                  id: 'stats' as const,
+                  label: 'Destaques',
+                  count: heroStats.length,
+                  icon: Sparkles,
+                  visible: canAccess('stats'),
+                },
+                {
+                  id: 'supporters' as const,
+                  label: 'Apoiadores',
+                  count: supporters.length,
+                  icon: HeartHandshake,
+                  visible: canAccess('supporters'),
+                },
+                {
+                  id: 'users' as const,
+                  label: 'Usuários & IPs',
+                  count: commentIdentities.length,
+                  icon: UserCheck,
+                  visible: canAccess('users'),
+                },
+                {
+                  id: 'access' as const,
+                  label: 'Acessos & Senhas',
+                  count: 1 + accounts.length,
+                  icon: KeyRound,
+                  goldIcon: true,
+                  visible: isMasterUnlocked,
+                },
+              ],
             },
           ]
-            .filter((t) => t.visible)
-            .map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all whitespace-nowrap ${
-                    isActive
-                      ? 'bg-lycoris-600/20 border border-lycoris-500/70 text-lycoris-200 shadow-lycoris-glow'
-                      : 'bg-zinc-900/60 hover:bg-zinc-900 border border-transparent hover:border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
+            .map((group) => ({
+              ...group,
+              visibleTabs: group.tabs.filter((t) => t.visible),
+            }))
+            .filter((group) => group.visibleTabs.length > 0)
+            .map((group) => (
+              <div
+                key={group.category}
+                className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-zinc-900/45 border border-zinc-800/80"
+              >
+                <span
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border select-none ${group.badgeColor}`}
                 >
-                  <Icon
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      tab.goldIcon
-                        ? 'text-gothic-gold'
-                        : isActive
-                        ? 'text-lycoris-400'
-                        : 'text-zinc-400'
-                    }`}
-                  />
-                  <span>{tab.label}</span>
-                  <span
-                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-none ${
-                      tab.alertBadge
-                        ? 'bg-lycoris-600 text-white animate-pulse'
-                        : isActive
-                        ? 'bg-lycoris-950/90 text-lycoris-300 border border-lycoris-700/50'
-                        : 'bg-zinc-800/80 text-zinc-400'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
+                  {group.category}
+                </span>
+                {group.visibleTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                        isActive
+                          ? 'bg-lycoris-600/20 border border-lycoris-500/70 text-lycoris-200 shadow-lycoris-glow'
+                          : 'bg-zinc-950/70 hover:bg-zinc-900 border border-transparent hover:border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <Icon
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          (tab as any).goldIcon
+                            ? 'text-gothic-gold'
+                            : isActive
+                            ? 'text-lycoris-400'
+                            : 'text-zinc-400'
+                        }`}
+                      />
+                      <span>{tab.label}</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold leading-none ${
+                          (tab as any).alertBadge
+                            ? 'bg-lycoris-600 text-white animate-pulse'
+                            : isActive
+                            ? 'bg-lycoris-950/90 text-lycoris-300 border border-lycoris-700/50'
+                            : 'bg-zinc-800/80 text-zinc-400'
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
         </div>
 
         {/* ============================================================== */}
@@ -2619,6 +2799,468 @@ export default function AdminPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* ABA: EDIÇÃO DA PÁGINA INICIAL (MANIFESTO & BANNER) */}
+        {/* ============================================================== */}
+        {activeTab === 'homepage' && canAccess('homepage') && (
+          <form onSubmit={handleSaveHomeContent} className="space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-950/90 border border-lycoris-900/50 backdrop-blur-md">
+              <div>
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <Home className="w-5 h-5 text-lycoris-400" />
+                  Edição dos Blocos da Página Inicial
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Personalize o bloco <strong>Manifesto da Comunidade</strong> (título, descrição, cards Atmosfera &amp; Diversão e quadro lateral) e os textos do <strong>Banner Principal</strong>.
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleResetHomeContent}
+                  className="px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold transition-colors"
+                >
+                  Restaurar Padrão
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingHomeContent}
+                  className="px-5 py-2.5 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
+                >
+                  {savingHomeContent ? 'Salvando...' : 'Salvar Blocos da Página Inicial'}
+                </button>
+              </div>
+            </div>
+
+            {/* BLOCO 1: MANIFESTO DA COMUNIDADE (SEÇÃO SOBRE) */}
+            <div className="p-6 rounded-2xl bg-zinc-950/90 border border-lycoris-800/50 backdrop-blur-md space-y-6">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-lycoris-950 border border-lycoris-800 text-lycoris-300 text-[10px] font-bold uppercase tracking-wider mb-1">
+                    <Sparkles className="w-3 h-3" />
+                    Bloco Principal — Seção Sobre
+                  </span>
+                  <h3 className="font-serif text-base sm:text-lg font-bold text-white">
+                    Manifesto da Comunidade, Cards &amp; Quadro Lateral
+                  </h3>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Coluna Esquerda: Título, Descrição e 2 Sub-blocos (Atmosfera e Diversão) */}
+                <div className="lg:col-span-7 space-y-4">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">
+                      Selo Superior (Badge)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={70}
+                      value={homeContent.aboutBadge}
+                      onChange={(e) =>
+                        setHomeContent({ ...homeContent, aboutBadge: e.target.value })
+                      }
+                      placeholder="Ex: Manifesto da Comunidade"
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Título (Início em Branco)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={100}
+                        value={homeContent.aboutTitleStart}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, aboutTitleStart: e.target.value })
+                        }
+                        placeholder="Um Jardim Carmesim Onde a"
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-lycoris-400 font-semibold mb-1">
+                        Destaque (em Carmesim)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={100}
+                        value={homeContent.aboutTitleHighlight}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, aboutTitleHighlight: e.target.value })
+                        }
+                        placeholder="Arte e a Conexão"
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-lycoris-700/70 text-lycoris-300 text-xs font-semibold focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Título (Final em Branco)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={100}
+                        value={homeContent.aboutTitleEnd}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, aboutTitleEnd: e.target.value })
+                        }
+                        placeholder="Florescem"
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">
+                      Texto Principal do Manifesto
+                    </label>
+                    <textarea
+                      required
+                      rows={4}
+                      maxLength={700}
+                      value={homeContent.aboutDescription}
+                      onChange={(e) =>
+                        setHomeContent({ ...homeContent, aboutDescription: e.target.value })
+                      }
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs leading-relaxed focus:outline-none focus:border-lycoris-500 resize-none"
+                    />
+                  </div>
+
+                  {/* Os 2 sub-blocos: Atmosfera (Carmesim) e Diversão (Dourado) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-lycoris-950/40 via-zinc-950 to-black border border-lycoris-500/50 space-y-3">
+                      <div className="flex items-center gap-2 text-lycoris-300 font-serif font-bold text-xs uppercase tracking-wider">
+                        <Moon className="w-4 h-4 text-lycoris-400" />
+                        <span>Sub-bloco 1 (Neon Carmesim)</span>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-zinc-400 mb-1">
+                          Título do Bloco 1
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={50}
+                          value={homeContent.block1Title}
+                          onChange={(e) =>
+                            setHomeContent({ ...homeContent, block1Title: e.target.value })
+                          }
+                          placeholder="ATMOSFERA"
+                          className="w-full px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs font-bold focus:outline-none focus:border-lycoris-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-zinc-400 mb-1">
+                          Descrição do Bloco 1
+                        </label>
+                        <textarea
+                          required
+                          rows={3}
+                          maxLength={240}
+                          value={homeContent.block1Description}
+                          onChange={(e) =>
+                            setHomeContent({ ...homeContent, block1Description: e.target.value })
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500 resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-amber-950/30 via-zinc-950 to-black border border-gothic-gold/50 space-y-3">
+                      <div className="flex items-center gap-2 text-gothic-gold font-serif font-bold text-xs uppercase tracking-wider">
+                        <Compass className="w-4 h-4 text-gothic-gold" />
+                        <span>Sub-bloco 2 (Neon Dourado)</span>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-zinc-400 mb-1">
+                          Título do Bloco 2
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={50}
+                          value={homeContent.block2Title}
+                          onChange={(e) =>
+                            setHomeContent({ ...homeContent, block2Title: e.target.value })
+                          }
+                          placeholder="DIVERSÃO"
+                          className="w-full px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs font-bold focus:outline-none focus:border-gothic-gold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-zinc-400 mb-1">
+                          Descrição do Bloco 2
+                        </label>
+                        <textarea
+                          required
+                          rows={3}
+                          maxLength={240}
+                          value={homeContent.block2Description}
+                          onChange={(e) =>
+                            setHomeContent({ ...homeContent, block2Description: e.target.value })
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-gothic-gold resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna Direita: Quadro Lateral da Marca (Imagem + Textos sobrepostos) */}
+                <div className="lg:col-span-5 p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 space-y-4 h-fit">
+                  <h4 className="font-serif text-sm font-bold text-white">
+                    Quadro Lateral da Marca (Direita)
+                  </h4>
+
+                  <div className="relative w-full max-w-[240px] mx-auto aspect-square rounded-2xl overflow-hidden border border-lycoris-600/40 shadow-lycoris-glow">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={homeContent.brandImageUrl || '/images/brand-guide.jpg'}
+                      alt="Prévia do Quadro"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4">
+                      <span className="text-[10px] uppercase tracking-widest text-lycoris-400 font-bold">
+                        {homeContent.brandEyebrow}
+                      </span>
+                      <span className="font-serif text-base font-bold text-white">
+                        {homeContent.brandTitle}
+                      </span>
+                      <span className="text-[11px] text-zinc-300 mt-0.5">
+                        {homeContent.brandSubtitle}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-dashed border-lycoris-700/60 hover:border-lycoris-500 bg-zinc-950/70 hover:bg-zinc-950 cursor-pointer transition-colors text-center">
+                      <Upload className="w-4 h-4 text-lycoris-400" />
+                      <span className="text-xs font-semibold text-zinc-200">
+                        {uploadingHomeBrandImage
+                          ? 'Comprimindo e enviando...'
+                          : 'Trocar imagem pelo computador (WebP)'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingHomeBrandImage}
+                        onChange={handleHomeBrandImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {homeBrandCompressionStats && (
+                      <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{homeBrandCompressionStats}</span>
+                      </p>
+                    )}
+
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1">
+                        URL da Imagem do Quadro
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={homeContent.brandImageUrl}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, brandImageUrl: e.target.value })
+                        }
+                        placeholder="/images/brand-guide.jpg"
+                        className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1">
+                        Sobretítulo (Carmesim)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={60}
+                        value={homeContent.brandEyebrow}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, brandEyebrow: e.target.value })
+                        }
+                        placeholder="Lycoris Garden"
+                        className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1">
+                        Título do Quadro
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={80}
+                        value={homeContent.brandTitle}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, brandTitle: e.target.value })
+                        }
+                        placeholder="Comunidade Oficial"
+                        className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-zinc-400 mb-1">
+                      Legenda Inferior do Quadro
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={120}
+                      value={homeContent.brandSubtitle}
+                      onChange={(e) =>
+                        setHomeContent({ ...homeContent, brandSubtitle: e.target.value })
+                      }
+                      placeholder="Faça parte você tambem!"
+                      className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* BLOCO 2: BANNER DO TOPO (HERO) */}
+            <div className="p-6 rounded-2xl bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md space-y-5">
+              <div className="border-b border-zinc-800/80 pb-3">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 text-[10px] font-bold uppercase tracking-wider mb-1">
+                  Topo da Página — Hero
+                </span>
+                <h3 className="font-serif text-base sm:text-lg font-bold text-white">
+                  Textos, Tópicos e Botão do Banner Inicial
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    Selo Flutuante do Topo
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={90}
+                    value={homeContent.heroBadge}
+                    onChange={(e) =>
+                      setHomeContent({ ...homeContent, heroBadge: e.target.value })
+                    }
+                    placeholder="VRChat Community • Red Spider Lily"
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    Frase Principal (em Dourado abaixo de LYCORIS GARDEN)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={180}
+                    value={homeContent.heroQuote}
+                    onChange={(e) =>
+                      setHomeContent({ ...homeContent, heroQuote: e.target.value })
+                    }
+                    placeholder="Lycoris‚ um jardim onde a vida e a morte se encontram."
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="md:col-span-6">
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    Lista de Tópicos do Banner (1 tópico por linha)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={heroBulletsText}
+                    onChange={(e) => setHeroBulletsText(e.target.value)}
+                    placeholder={'Instâncias com DJs\nSorteios\nEventos e atividades especiais'}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs leading-relaxed focus:outline-none focus:border-lycoris-500 resize-none"
+                  />
+                </div>
+
+                <div className="md:col-span-6 space-y-3">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">
+                      Frase de Convite em Itálico (abaixo dos tópicos)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={160}
+                      value={homeContent.heroInviteQuote}
+                      onChange={(e) =>
+                        setHomeContent({ ...homeContent, heroInviteQuote: e.target.value })
+                      }
+                      placeholder="Entre no jardim, e se torne um Lírio."
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Texto do Botão Principal
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={70}
+                        value={homeContent.heroCtaText}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, heroCtaText: e.target.value })
+                        }
+                        placeholder="Filiação ao Grupo no VRChat"
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">
+                        Link do Botão Principal (URL)
+                      </label>
+                      <input
+                        type="url"
+                        required
+                        maxLength={300}
+                        value={homeContent.heroCtaUrl}
+                        onChange={(e) =>
+                          setHomeContent({ ...homeContent, heroCtaUrl: e.target.value })
+                        }
+                        placeholder="https://vrc.group/LYCORI.7672"
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-xs focus:outline-none focus:border-lycoris-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={savingHomeContent}
+                  className="px-6 py-3 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lycoris-glow transition-all"
+                >
+                  {savingHomeContent ? 'Salvando...' : 'Salvar Blocos da Página Inicial'}
+                </button>
+              </div>
+            </div>
+          </form>
         )}
 
         {/* ABA: DESTAQUES DO TOPO (CAIXAS DO BANNER) */}
@@ -3733,41 +4375,56 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {ACCESS_MODULE_DEFS.map((def) => {
-                            const enabled = Boolean(acc.modules[def.key]);
+                        <div className="p-4 sm:p-5 space-y-4">
+                          {(['Eventos', 'Galeria', 'Lojas', 'ADM'] as const).map((cat) => {
+                            const catDefs = ACCESS_MODULE_DEFS.filter((d) => d.category === cat);
                             return (
-                              <label
-                                key={def.key}
-                                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
-                                  enabled
-                                    ? 'bg-gradient-to-br from-lycoris-950/60 via-zinc-900/90 to-zinc-950 border-lycoris-500/60'
-                                    : 'bg-zinc-900/50 hover:bg-zinc-900 border-zinc-800'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={enabled}
-                                  disabled={savingAccess}
-                                  onChange={() => handleToggleAccountModule(acc.id, def.key)}
-                                  className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer shrink-0"
-                                />
-                                <div className="min-w-0 space-y-0.5">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-white">{def.title}</span>
-                                    <span
-                                      className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                                        enabled
-                                          ? 'bg-emerald-950/90 border border-emerald-600/60 text-emerald-300'
-                                          : 'bg-zinc-800 text-zinc-400'
-                                      }`}
-                                    >
-                                      {enabled ? 'Liberado' : 'Bloqueado'}
-                                    </span>
-                                  </div>
-                                  <p className="text-[11px] text-zinc-400 leading-snug">{def.desc}</p>
+                              <div key={cat} className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-[10px] font-bold uppercase tracking-widest text-zinc-300">
+                                    Divisão: {cat}
+                                  </span>
+                                  <div className="h-[1px] flex-1 bg-zinc-800/80" />
                                 </div>
-                              </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {catDefs.map((def) => {
+                                    const enabled = Boolean(acc.modules[def.key]);
+                                    return (
+                                      <label
+                                        key={def.key}
+                                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                                          enabled
+                                            ? 'bg-gradient-to-br from-lycoris-950/60 via-zinc-900/90 to-zinc-950 border-lycoris-500/60'
+                                            : 'bg-zinc-900/50 hover:bg-zinc-900 border-zinc-800'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={enabled}
+                                          disabled={savingAccess}
+                                          onChange={() => handleToggleAccountModule(acc.id, def.key)}
+                                          className="mt-0.5 w-4 h-4 accent-rose-600 rounded cursor-pointer shrink-0"
+                                        />
+                                        <div className="min-w-0 space-y-0.5">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-white">{def.title}</span>
+                                            <span
+                                              className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                                                enabled
+                                                  ? 'bg-emerald-950/90 border border-emerald-600/60 text-emerald-300'
+                                                  : 'bg-zinc-800 text-zinc-400'
+                                              }`}
+                                            >
+                                              {enabled ? 'Liberado' : 'Bloqueado'}
+                                            </span>
+                                          </div>
+                                          <p className="text-[11px] text-zinc-400 leading-snug">{def.desc}</p>
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             );
                           })}
                         </div>

@@ -16,6 +16,7 @@ export const ALL_MODULE_KEYS: AdminModuleKey[] = [
   'registrations',
   'supporters',
   'stats',
+  'homepage',
   'sawvr',
   'submissions',
   'comments',

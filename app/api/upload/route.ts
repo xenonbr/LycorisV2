@@ -6,13 +6,14 @@ import { AdminModuleKey } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 const BUCKET_NAME = 'lycoris-media';
-const ALLOWED_FOLDERS = new Set(['events', 'gallery', 'supporters', 'sawvr']);
+const ALLOWED_FOLDERS = new Set(['events', 'gallery', 'supporters', 'sawvr', 'homepage']);
 // Cada pasta de upload só pode ser usada por quem tem o módulo correspondente liberado
 const FOLDER_MODULE: Record<string, AdminModuleKey> = {
   events: 'events',
   gallery: 'gallery',
   supporters: 'supporters',
   sawvr: 'sawvr',
+  homepage: 'homepage',
 };
 
 function detectImageFormat(buf: Buffer): 'webp' | 'png' | 'jpg' | 'gif' | null {

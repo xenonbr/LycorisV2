@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ExternalLink, Calendar, ChevronDown, Flame } from 'lucide-react';
-import { INITIAL_HERO_STATS } from '@/lib/mockData';
-import { HeroStat } from '@/lib/types';
+import { INITIAL_HERO_STATS, INITIAL_HOME_CONTENT } from '@/lib/mockData';
+import { HeroStat, HomePageContent } from '@/lib/types';
 
 const COLOR_CLASS: Record<string, string> = {
   'lycoris-400': 'text-lycoris-400',
@@ -15,12 +15,22 @@ const COLOR_CLASS: Record<string, string> = {
 
 export default function Hero() {
   const [stats, setStats] = useState<HeroStat[]>(INITIAL_HERO_STATS);
+  const [homeContent, setHomeContent] = useState<HomePageContent>(INITIAL_HOME_CONTENT);
 
   useEffect(() => {
     fetch('/api/stats', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setStats(data);
+      })
+      .catch(() => {});
+
+    fetch('/api/homepage', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data === 'object' && data.heroBadge) {
+          setHomeContent((prev) => ({ ...prev, ...data }));
+        }
       })
       .catch(() => {});
   }, []);
@@ -50,7 +60,7 @@ export default function Hero() {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-lycoris-950/80 border border-lycoris-700/50 backdrop-blur-md shadow-lycoris-glow animate-float">
             <Flame className="w-4 h-4 text-lycoris-500 animate-pulse" />
             <span className="text-xs uppercase tracking-widest text-lycoris-300 font-semibold">
-              VRChat Community • Red Spider Lily
+              {homeContent.heroBadge}
             </span>
           </div>
         </div>
@@ -64,7 +74,7 @@ export default function Hero() {
             LYCORIS <span className="text-transparent bg-clip-text bg-gradient-to-r from-lycoris-400 via-lycoris-500 to-lycoris-700">GARDEN</span>
           </h1>
           <p className="font-serif italic text-base sm:text-2xl text-gothic-gold font-light tracking-wide max-w-2xl mx-auto drop-shadow px-2">
-            &ldquo;Lycoris‚ um jardim onde a vida e a morte se encontram.&rdquo;
+            &ldquo;{homeContent.heroQuote}&rdquo;
           </p>
         </div>
 
@@ -73,14 +83,15 @@ export default function Hero() {
           style={{ '--reveal-delay': '580ms' } as React.CSSProperties}
           className="lycoris-reveal-step font-sans text-sm sm:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed font-normal space-y-1.5 sm:space-y-2"
         >
-          <p>• Instâncias com DJs</p>
-          <p>• Sorteios</p>
-          <p>• Eventos e atividades especiais</p>
-          <p>• Uma comunidade para conhecer pessoas e criar memórias</p>
+          {(homeContent.heroBullets || []).map((bullet, idx) => (
+            <p key={idx}>• {bullet.replace(/^[•\-*]\s*/, '')}</p>
+          ))}
 
-          <p className="font-serif italic text-lycoris-300 pt-2 sm:pt-3 text-base sm:text-lg">
-            &ldquo;Entre no jardim, e se torne um Lírio.&rdquo;
-          </p>
+          {homeContent.heroInviteQuote && (
+            <p className="font-serif italic text-lycoris-300 pt-2 sm:pt-3 text-base sm:text-lg">
+              &ldquo;{homeContent.heroInviteQuote}&rdquo;
+            </p>
+          )}
         </div>
 
         {/* Botões de Ação (CTAs) */}
@@ -89,12 +100,12 @@ export default function Hero() {
           className="lycoris-reveal-step flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-2 sm:pt-4"
         >
           <a
-            href="https://vrc.group/LYCORI.7672"
+            href={homeContent.heroCtaUrl || 'https://vrc.group/LYCORI.7672'}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-lycoris-600 hover:bg-lycoris-500 active:scale-[0.98] text-white font-semibold text-sm sm:text-base shadow-lycoris-glow hover:shadow-lycoris-glow-lg transition-all duration-300 sm:hover:scale-[1.02] border border-lycoris-400/40"
           >
-            <span>Filiação ao Grupo no VRChat</span>
+            <span>{homeContent.heroCtaText}</span>
             <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5 text-lycoris-200" />
           </a>
 
