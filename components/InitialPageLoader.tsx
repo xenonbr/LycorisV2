@@ -8,13 +8,12 @@ export default function InitialPageLoader({
 }: {
   children: React.ReactNode;
 }) {
-  // 'dark': tela preta com as pétalas caindo + Flor Lycoris centralizada com glow e título "Lycoris Garden"
-  // 'revealing': a flor central e a cortina preta se dissipam suavemente e o conteúdo da página surge em cascata de cima para baixo
-  // 'done': animação concluída e pétalas ao fundo com leve desfoque (~5%)
+  // 'dark': tela preta com as pétalas em primeiro plano + Flor Lycoris centralizada com glow e título "Lycoris Garden"
+  // 'revealing': as pétalas do primeiro plano recuam e se dissipam gradualmente (scale + blur + fade) enquanto as pétalas de segundo plano surgem atrás do conteúdo
+  // 'done': animação concluída com apenas a camada de segundo plano ativa atrás do site
   const [phase, setPhase] = useState<'dark' | 'revealing' | 'done'>('dark');
 
   useEffect(() => {
-    // Respeita preferência de movimento reduzido
     if (
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -32,7 +31,7 @@ export default function InitialPageLoader({
     }
 
     const darkHoldMs = alreadyVisited ? 550 : 1450;
-    const revealDurationMs = alreadyVisited ? 1300 : 2350;
+    const revealDurationMs = alreadyVisited ? 1400 : 2100;
 
     const revealTimer = window.setTimeout(() => {
       setPhase('revealing');
@@ -50,16 +49,27 @@ export default function InitialPageLoader({
 
   return (
     <>
-      {/* Camada Global de Pétalas de Lycoris:
-          Fica nítida acima da cortina preta durante a abertura (z-[85]),
-          e após a animação finalizar retorna ao fundo da página (z-[1]) com desfoque sutil (~5%). */}
+      {/* Camada de Segundo Plano (z-[1]): sempre atrás dos cards e textos (z-10),
+          com leve desfoque de profundidade (~5%) */}
       <LycorisParticles
-        className={`pointer-events-none fixed inset-0 h-full w-full transition-all duration-1000 ${
-          phase === 'done'
-            ? 'z-[1] opacity-75 blur-[0.7px]'
-            : 'z-[85] opacity-95 blur-none'
+        className={`pointer-events-none fixed inset-0 h-full w-full z-[1] blur-[0.7px] transition-opacity duration-[1600ms] ease-out ${
+          phase === 'dark' ? 'opacity-0' : 'opacity-75'
         }`}
       />
+
+      {/* Camada de Primeiro Plano da Abertura (z-[85]):
+          Durante a fase 'dark' fica nítida em primeiro plano;
+          Ao entrar em 'revealing', recua suavemente para trás (scale-95 + blur + opacity-0)
+          em crossfade gradual com a camada de segundo plano, sem corte brusco. */}
+      {phase !== 'done' && (
+        <LycorisParticles
+          className={`pointer-events-none fixed inset-0 h-full w-full z-[85] transition-all ease-in-out ${
+            phase === 'dark'
+              ? 'opacity-95 scale-100 blur-none duration-500'
+              : 'opacity-0 scale-95 blur-[2.5px] duration-[1750ms]'
+          }`}
+        />
+      )}
 
       {/* Cortina Preta Inicial + Flor de Lycoris Centralizada com Glow + Nome Lycoris Garden */}
       {phase !== 'done' && (
@@ -104,19 +114,8 @@ export default function InitialPageLoader({
         </div>
       )}
 
-      {/* Conteúdo da Página com Fade-In Gradativo de Cima para Baixo */}
-      <div
-        data-intro-phase={phase}
-        className={`lycoris-intro-stage ${
-          phase === 'done'
-            ? ''
-            : `transition-opacity ease-out ${
-                phase === 'dark'
-                  ? 'opacity-0 duration-300'
-                  : 'opacity-100 duration-[1400ms]'
-              }`
-        }`}
-      >
+      {/* Conteúdo da Página (sem opacity no wrapper externo para nunca criar stacking context z-0 abaixo de z-[1]) */}
+      <div data-intro-phase={phase} className="lycoris-intro-stage">
         {children}
       </div>
     </>
